@@ -1,0 +1,30 @@
+/*@!Encoding:1252*/
+includes
+{
+  
+}
+
+variables
+{
+  
+}
+
+on message 0x322
+{
+  dword distance;
+  
+  //write("MSG: %x %x %x %x %x", this.byte(0), this.byte(1), this.byte(2), this.byte(3));
+  /*if(this.byte(2) > 0)
+  {
+    distance = (this.byte(0)<<8 | this.byte(1))<<8 | this.byte(2);
+  }
+  else
+  {
+    distance = this.byte(0)<<8 | this.byte(1);
+  }*/
+  
+  distance = this.byte(1)<<8 | this.byte(0);
+  write("Distance: %d", distance);
+  
+}
+

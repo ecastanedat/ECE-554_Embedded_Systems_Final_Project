@@ -1,0 +1,5 @@
+app_freertos.c:93:6:MX_FREERTOS_Init	8	static
+app_freertos.c:141:6:StartCAN_Comm	48	static
+app_freertos.c:179:6:Start_ultra_sensor_rx	16	static
+app_freertos.c:200:6:Start_ultra_sensor_tr	24	static
+app_freertos.c:228:9:number_to_byte_arr	24	static

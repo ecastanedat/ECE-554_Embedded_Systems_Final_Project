@@ -42,9 +42,9 @@
 /* Private define ------------------------------------------------------------*/
 /* USER CODE BEGIN PD */
 #define SPEED_OF_SOUND 34300       // Speed of sound in cm/s.
-#define TIMER_PERIOD 0.0000000125   //80 Mhz clock = 0.0125 us.
-#define OFF   0
-#define ON    1
+#define TIMER_PERIOD 0.0000000125   //80 Mhz clock. Period = 0.0125 us.
+#define OFF    0
+#define ON     1
 #define TOGGLE 2
 
 /* USER CODE END PD */
@@ -172,6 +172,7 @@ void Controller_handler(void *argument)
   /* USER CODE BEGIN Controller_handler */
   uint32_t timer_ticks = 0;
   uint8_t reversed_array[8], reversed_array_size = 0, reversed_array_elem = 0;
+  int8_t delta;
   float distance;
   char string_number[10];
   SM_STATES state = INIT;
@@ -183,7 +184,7 @@ void Controller_handler(void *argument)
 	  switch(state)
 	  {
 		  case INIT:  /*Initialize SM*/
-					  /*Suspend and set to ZERO all LED tasks*/
+					  /*Set to ZERO all LEDs except the Green led*/
 			  	  	  xTaskNotify((TaskHandle_t)led_greenHandle, ON, eSetValueWithOverwrite);
 			  	  	  xTaskNotify((TaskHandle_t)led_yellowHandle, OFF, eSetValueWithOverwrite);
 			  	  	  xTaskNotify((TaskHandle_t)led_redHandle, OFF, eSetValueWithOverwrite);
@@ -197,9 +198,28 @@ void Controller_handler(void *argument)
 					  distance = (SPEED_OF_SOUND * TIMER_PERIOD * timer_ticks)/2;
 
 					  //itoa(distance, string_number, 10);
-					  sprintf(string_number, "%f", distance);
+					  sprintf(string_number, "%0.4f", distance);
 					  print_to_console(string_number);
 
+					  delta = distance - distance_thershold;
+
+					  if(delta <= 0)
+					  {
+						  xTaskNotify((TaskHandle_t)led_redHandle, TOGGLE, eSetValueWithOverwrite);
+						  xTaskNotify((TaskHandle_t)led_greenHandle, OFF, eSetValueWithOverwrite);
+						  xTaskNotify((TaskHandle_t)led_yellowHandle, OFF, eSetValueWithOverwrite);
+					  }
+					  else if(delta > 0 && delta <= 5)
+					  {
+						  xTaskNotify((TaskHandle_t)led_yellowHandle, ON, eSetValueWithOverwrite);
+						  xTaskNotify((TaskHandle_t)led_greenHandle, OFF, eSetValueWithOverwrite);
+					  }
+					  else
+					  {
+						  xTaskNotify((TaskHandle_t)led_yellowHandle, OFF, eSetValueWithOverwrite);
+						  xTaskNotify((TaskHandle_t)led_redHandle, OFF, eSetValueWithOverwrite);
+						  xTaskNotify((TaskHandle_t)led_greenHandle, ON, eSetValueWithOverwrite);
+					  }
 
 					  reversed_array_size = number_to_byte_arr(reversed_array, (uint8_t)distance);
 					  reversed_array_elem = reversed_array_size;
@@ -242,7 +262,7 @@ void led_green_handler(void *argument)
   for(;;)
   {
 	  //HAL_GPIO_TogglePin(GREEN_LED_GPIO_Port, GREEN_LED_Pin);
-	  xTaskNotifyWait(0, 0, &flag, pdMS_TO_TICKS(1000));
+	  xTaskNotifyWait(0, 0, &flag, pdMS_TO_TICKS(100));
 
 	  switch(flag)
 	  {
@@ -305,7 +325,7 @@ void led_yellow_handler(void *argument)
   /* Infinite loop */
   for(;;)
   {
-	  xTaskNotifyWait(0, 0, &flag, pdMS_TO_TICKS(1000));
+	  xTaskNotifyWait(0, 0, &flag, pdMS_TO_TICKS(100));
 
 	  switch(flag)
 	  {
@@ -335,24 +355,28 @@ void led_red_handler(void *argument)
 {
   /* USER CODE BEGIN led_red_handler */
   uint32_t flag;
+  BaseType_t status;
 
   /* Infinite loop */
   for(;;)
   {
-	  xTaskNotifyWait(0, 0, &flag, pdMS_TO_TICKS(1000));
-
-	  switch(flag)
+	  status = xTaskNotifyWait(0, 0, &flag, pdMS_TO_TICKS(100));
+	  if(status == pdTRUE)
 	  {
-		  case ON: HAL_GPIO_WritePin(RED_LED_GPIO_Port, RED_LED_Pin, ON);
-				   break;
+		  switch(flag)
+		  {
+			  case ON: HAL_GPIO_WritePin(RED_LED_GPIO_Port, RED_LED_Pin, ON);
+					   break;
 
-		  case OFF: HAL_GPIO_WritePin(RED_LED_GPIO_Port, RED_LED_Pin, OFF);
-				    break;
+			  case OFF: HAL_GPIO_WritePin(RED_LED_GPIO_Port, RED_LED_Pin, OFF);
+						break;
 
-		  case TOGGLE: HAL_GPIO_TogglePin(RED_LED_GPIO_Port, RED_LED_Pin);
-				       break;
+			  case TOGGLE: HAL_GPIO_TogglePin(RED_LED_GPIO_Port, RED_LED_Pin);
+			  	  	  	   vTaskDelay(pdMS_TO_TICKS(100));
+						   break;
 
-		  default: break;
+			  default: break;
+		  }
 	  }
   }
   /* USER CODE END led_red_handler */

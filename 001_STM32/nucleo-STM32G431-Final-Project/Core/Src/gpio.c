@@ -101,7 +101,7 @@ void HAL_GPIO_EXTI_Callback(uint16_t GPIO_Pin)
 								break;
 
 			case GPIO_PIN_RESET: /*Falling Edge*/
-								 xTaskNotifyFromISR((TaskHandle_t)CAN_CommHandle, __HAL_TIM_GET_COUNTER(&htim2), eSetValueWithOverwrite, NULL);
+								 xTaskNotifyFromISR((TaskHandle_t)ControllerHandle, __HAL_TIM_GET_COUNTER(&htim2), eSetValueWithOverwrite, NULL);
 								 break;
 
 			default: break;

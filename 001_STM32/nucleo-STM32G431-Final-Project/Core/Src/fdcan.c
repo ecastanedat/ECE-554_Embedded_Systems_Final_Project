@@ -203,6 +203,7 @@ void HAL_FDCAN_RxFifo0Callback(FDCAN_HandleTypeDef *hfdcan, uint32_t RxFifo0ITs)
 	if ((RxHeader.Identifier == 0x124) && (RxHeader.IdType == FDCAN_STANDARD_ID))
 	{
 		HAL_GPIO_TogglePin(LD2_GPIO_Port, LD2_Pin);
+		distance_thershold = CAN_Rx_Data[0];       //Replace global variable with MUTEX.
 	}
 
 }

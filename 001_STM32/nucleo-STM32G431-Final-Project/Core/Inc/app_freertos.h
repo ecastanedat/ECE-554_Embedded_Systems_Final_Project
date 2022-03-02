@@ -11,7 +11,7 @@
 /* USER CODE BEGIN 1 */
 /*These are the task handle references. They were declared here
   to allow gpio.c access freeRTOS functions.*/
-osThreadId_t CAN_CommHandle;
+osThreadId_t ControllerHandle;
 osThreadId_t led_greenHandle;
 osThreadId_t led_yellowHandle;
 osThreadId_t led_redHandle;

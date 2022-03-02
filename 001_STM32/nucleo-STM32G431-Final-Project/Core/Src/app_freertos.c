@@ -43,6 +43,9 @@
 /* USER CODE BEGIN PD */
 #define SPEED_OF_SOUND 34300       // Speed of sound in cm/s.
 #define TIMER_PERIOD 0.0000000125   //80 Mhz clock = 0.0125 us.
+#define OFF   0
+#define ON    1
+#define TOGGLE 2
 
 /* USER CODE END PD */
 
@@ -55,10 +58,10 @@
 /* USER CODE BEGIN Variables */
 
 /* USER CODE END Variables */
-/* Definitions for CAN_Comm */
-//osThreadId_t CAN_CommHandle;
-const osThreadAttr_t CAN_Comm_attributes = {
-  .name = "CAN_Comm",
+/* Definitions for Controller */
+//osThreadId_t ControllerHandle;
+const osThreadAttr_t Controller_attributes = {
+  .name = "Controller",
   .priority = (osPriority_t) osPriorityNormal,
   .stack_size = 200 * 4
 };
@@ -97,7 +100,7 @@ uint8_t number_to_byte_arr(uint8_t *byte_array, uint32_t number_to_convert);
 
 /* USER CODE END FunctionPrototypes */
 
-void StartCAN_Comm(void *argument);
+void Controller_handler(void *argument);
 void led_green_handler(void *argument);
 void Start_ultra_sensor_tr(void *argument);
 void led_yellow_handler(void *argument);
@@ -132,8 +135,8 @@ void MX_FREERTOS_Init(void) {
   /* USER CODE END RTOS_QUEUES */
 
   /* Create the thread(s) */
-  /* creation of CAN_Comm */
-  CAN_CommHandle = osThreadNew(StartCAN_Comm, NULL, &CAN_Comm_attributes);
+  /* creation of Controller */
+  ControllerHandle = osThreadNew(Controller_handler, NULL, &Controller_attributes);
 
   /* creation of led_green */
   led_greenHandle = osThreadNew(led_green_handler, NULL, &led_green_attributes);
@@ -157,16 +160,16 @@ void MX_FREERTOS_Init(void) {
 
 }
 
-/* USER CODE BEGIN Header_StartCAN_Comm */
+/* USER CODE BEGIN Header_Controller_handler */
 /**
-  * @brief  Function implementing the CAN_Comm thread.
+  * @brief  Function implementing the Controller thread.
   * @param  argument: Not used
   * @retval None
   */
-/* USER CODE END Header_StartCAN_Comm */
-void StartCAN_Comm(void *argument)
+/* USER CODE END Header_Controller_handler */
+void Controller_handler(void *argument)
 {
-  /* USER CODE BEGIN StartCAN_Comm */
+  /* USER CODE BEGIN Controller_handler */
   uint32_t timer_ticks = 0;
   uint8_t reversed_array[8], reversed_array_size = 0, reversed_array_elem = 0;
   float distance;
@@ -179,12 +182,16 @@ void StartCAN_Comm(void *argument)
 	  /* USER CODE BEGIN SM_Controller */
 	  switch(state)
 	  {
-	  	  case INIT:  /*Initialize SM*/
-	  		          //
-	  		          state = IDLE;
-	  		  	  	  break;
+		  case INIT:  /*Initialize SM*/
+					  /*Suspend and set to ZERO all LED tasks*/
+			  	  	  xTaskNotify((TaskHandle_t)led_greenHandle, ON, eSetValueWithOverwrite);
+			  	  	  xTaskNotify((TaskHandle_t)led_yellowHandle, OFF, eSetValueWithOverwrite);
+			  	  	  xTaskNotify((TaskHandle_t)led_redHandle, OFF, eSetValueWithOverwrite);
 
-	  	  case IDLE:  /*IDLE*/
+			  	  	  state = IDLE;
+					  break;
+
+		  case IDLE:  /*IDLE*/
 					   xTaskNotifyWait(0, 0, &timer_ticks, pdMS_TO_TICKS(10));
 					  //distance = ceil((SPEED_OF_SOUND * TIMER_PERIOD * timer_ticks)/2);
 					  distance = (SPEED_OF_SOUND * TIMER_PERIOD * timer_ticks)/2;
@@ -209,14 +216,14 @@ void StartCAN_Comm(void *argument)
 					  HAL_FDCAN_AddMessageToTxFifoQ(&hfdcan1, &TxHeader, CAN_Tx_Data); //Sends the distance to the CAN network.
 
 					  state = IDLE;
-	  		          break;
+					  break;
 
-	  	  default:    break;
+		  default:    break;
 	  }
 	  /* USER CODE END SM_Controller */
 
-  }
-  /* USER CODE END StartCAN_Comm */
+   }
+  /* USER CODE END Controller_handler */
 }
 
 /* USER CODE BEGIN Header_led_green_handler */
@@ -229,11 +236,28 @@ void StartCAN_Comm(void *argument)
 void led_green_handler(void *argument)
 {
   /* USER CODE BEGIN led_green_handler */
+  uint32_t flag;
+
   /* Infinite loop */
   for(;;)
   {
 	  //HAL_GPIO_TogglePin(GREEN_LED_GPIO_Port, GREEN_LED_Pin);
-      osDelay(1000);
+	  xTaskNotifyWait(0, 0, &flag, pdMS_TO_TICKS(1000));
+
+	  switch(flag)
+	  {
+	  	  case ON: HAL_GPIO_WritePin(GREEN_LED_GPIO_Port, GREEN_LED_Pin, ON);
+	               break;
+
+	  	  case OFF: HAL_GPIO_WritePin(GREEN_LED_GPIO_Port, GREEN_LED_Pin, OFF);
+	  	            break;
+
+	  	  case TOGGLE: HAL_GPIO_TogglePin(GREEN_LED_GPIO_Port, GREEN_LED_Pin);
+	  	               break;
+
+	  	  default: break;
+	  }
+
   }
   /* USER CODE END led_green_handler */
 }
@@ -276,11 +300,26 @@ void Start_ultra_sensor_tr(void *argument)
 void led_yellow_handler(void *argument)
 {
   /* USER CODE BEGIN led_yellow_handler */
+  uint32_t flag;
+
   /* Infinite loop */
   for(;;)
   {
-	  //HAL_GPIO_TogglePin(YELLOW_LED_GPIO_Port, YELLOW_LED_Pin);
-      osDelay(800);
+	  xTaskNotifyWait(0, 0, &flag, pdMS_TO_TICKS(1000));
+
+	  switch(flag)
+	  {
+		  case ON: HAL_GPIO_WritePin(YELLOW_LED_GPIO_Port, YELLOW_LED_Pin, ON);
+				   break;
+
+		  case OFF: HAL_GPIO_WritePin(YELLOW_LED_GPIO_Port, YELLOW_LED_Pin, OFF);
+				    break;
+
+		  case TOGGLE: HAL_GPIO_TogglePin(YELLOW_LED_GPIO_Port, YELLOW_LED_Pin);
+				       break;
+
+		  default: break;
+	  }
   }
   /* USER CODE END led_yellow_handler */
 }
@@ -295,11 +334,26 @@ void led_yellow_handler(void *argument)
 void led_red_handler(void *argument)
 {
   /* USER CODE BEGIN led_red_handler */
+  uint32_t flag;
+
   /* Infinite loop */
   for(;;)
   {
-	  HAL_GPIO_TogglePin(RED_LED_GPIO_Port, RED_LED_Pin);
-      osDelay(100);
+	  xTaskNotifyWait(0, 0, &flag, pdMS_TO_TICKS(1000));
+
+	  switch(flag)
+	  {
+		  case ON: HAL_GPIO_WritePin(RED_LED_GPIO_Port, RED_LED_Pin, ON);
+				   break;
+
+		  case OFF: HAL_GPIO_WritePin(RED_LED_GPIO_Port, RED_LED_Pin, OFF);
+				    break;
+
+		  case TOGGLE: HAL_GPIO_TogglePin(RED_LED_GPIO_Port, RED_LED_Pin);
+				       break;
+
+		  default: break;
+	  }
   }
   /* USER CODE END led_red_handler */
 }

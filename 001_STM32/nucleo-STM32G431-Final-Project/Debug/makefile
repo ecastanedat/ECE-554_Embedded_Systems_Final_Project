@@ -64,8 +64,8 @@ all: main-build
 main-build: nucleo-STM32G431-Final-Project.elf secondary-outputs
 
 # Tool invocations
-nucleo-STM32G431-Final-Project.elf: $(OBJS) $(USER_OBJS) C:\Users\ecastanedat\STM32CubeIDE\workspace_1.8.0\nucleo-STM32G431-Final-Project\STM32G431KBTX_FLASH.ld makefile objects.list $(OPTIONAL_TOOL_DEPS)
-	arm-none-eabi-gcc -o "nucleo-STM32G431-Final-Project.elf" @"objects.list" $(USER_OBJS) $(LIBS) -mcpu=cortex-m4 -T"C:\Users\ecastanedat\STM32CubeIDE\workspace_1.8.0\nucleo-STM32G431-Final-Project\STM32G431KBTX_FLASH.ld" --specs=nosys.specs -Wl,-Map="nucleo-STM32G431-Final-Project.map" -Wl,--gc-sections -static --specs=nano.specs -mfpu=fpv4-sp-d16 -mfloat-abi=hard -mthumb -Wl,--start-group -lc -lm -Wl,--end-group
+nucleo-STM32G431-Final-Project.elf: $(OBJS) $(USER_OBJS) E:\Shared_HDD\Esteban\099_BuffaloBackup\Respaldos\Respaldo\ Escuela\UM\ Dearborn\ECE_554_Embedded_Systems\001_Final_Project_G4\001_STM32\nucleo-STM32G431-Final-Project\STM32G431KBTX_FLASH.ld makefile objects.list $(OPTIONAL_TOOL_DEPS)
+	arm-none-eabi-gcc -o "nucleo-STM32G431-Final-Project.elf" @"objects.list" $(USER_OBJS) $(LIBS) -mcpu=cortex-m4 -T"E:\Shared_HDD\Esteban\099_BuffaloBackup\Respaldos\Respaldo Escuela\UM Dearborn\ECE_554_Embedded_Systems\001_Final_Project_G4\001_STM32\nucleo-STM32G431-Final-Project\STM32G431KBTX_FLASH.ld" --specs=nosys.specs -Wl,-Map="nucleo-STM32G431-Final-Project.map" -Wl,--gc-sections -static --specs=nano.specs -mfpu=fpv4-sp-d16 -mfloat-abi=hard -mthumb -u _printf_float -Wl,--start-group -lc -lm -Wl,--end-group
 	@echo 'Finished building target: $@'
 	@echo ' '
 

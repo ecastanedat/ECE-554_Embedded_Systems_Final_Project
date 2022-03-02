@@ -139,17 +139,17 @@ void FDCAN1_MSG_config(void)
 	FDCAN_FilterTypeDef sFilterConfig;
 
 	//Prepare CAN data
-	//myTxData[0] = 0x00;
-	//myTxData[1] = 0x00;
-	//myTxData[2] = 0x00;
-	//myTxData[3] = 0x00;
+	//CAN_Tx_Data[0] = 0x00;
+	//CAN_Tx_Data[1] = 0x00;
+	//CAN_Tx_Data[2] = 0x00;
+	//CAN_Tx_Data[3] = 0x00;
 
 	/* Configure Rx filter */
 	sFilterConfig.IdType = FDCAN_STANDARD_ID;
 	sFilterConfig.FilterIndex = 0;
 	sFilterConfig.FilterType = FDCAN_FILTER_MASK;
 	sFilterConfig.FilterConfig = FDCAN_FILTER_TO_RXFIFO0;
-	sFilterConfig.FilterID1 = 0x321;
+	sFilterConfig.FilterID1 = 0x124;
 	sFilterConfig.FilterID2 = 0x7FF;
 	if (HAL_FDCAN_ConfigFilter(&hfdcan1, &sFilterConfig) != HAL_OK)
 	{
@@ -184,5 +184,26 @@ void FDCAN1_MSG_config(void)
 	{
 	    Error_Handler();
 	}
+}
+
+/**
+  * @brief  Rx FIFO 0 callback.
+  * @param  hfdcan pointer to an FDCAN_HandleTypeDef structure that contains
+  *         the configuration information for the specified FDCAN.
+  * @param  RxFifo0ITs indicates which Rx FIFO 0 interrupts are signaled.
+  *         This parameter can be any combination of @arg FDCAN_Rx_Fifo0_Interrupts.
+  * @retval None
+  */
+void HAL_FDCAN_RxFifo0Callback(FDCAN_HandleTypeDef *hfdcan, uint32_t RxFifo0ITs)
+{
+	/* Retrieve Rx messages from RX FIFO0 */
+	HAL_FDCAN_GetRxMessage(hfdcan, FDCAN_RX_FIFO0, &RxHeader, CAN_Rx_Data);
+
+	/* Display LEDx */
+	if ((RxHeader.Identifier == 0x124) && (RxHeader.IdType == FDCAN_STANDARD_ID))
+	{
+		HAL_GPIO_TogglePin(LD2_GPIO_Port, LD2_Pin);
+	}
+
 }
 /* USER CODE END 1 */

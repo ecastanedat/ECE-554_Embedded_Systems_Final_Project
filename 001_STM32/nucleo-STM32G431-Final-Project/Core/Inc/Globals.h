@@ -32,7 +32,7 @@ typedef enum{
 
 /* USER CODE END Data_Overhead */
 
-//uint32_t timer_val;
+uint8_t distance_thershold;
 
 /* USER CODE BEGIN Prototypes */
 void print_to_console(char *myString);

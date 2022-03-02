@@ -30,6 +30,8 @@
 #include "tim.h"
 #include "app_freertos.h"
 #include "stdlib.h"
+#include "math.h"
+#include "stdio.h"
 /* USER CODE END Includes */
 
 /* Private typedef -----------------------------------------------------------*/
@@ -40,7 +42,7 @@
 /* Private define ------------------------------------------------------------*/
 /* USER CODE BEGIN PD */
 #define SPEED_OF_SOUND 34300       // Speed of sound in cm/s.
-#define TIMER_PERIOD 0.0000000125  //80 Mhz clock = 0.0125 us.
+#define TIMER_PERIOD 0.0000000125   //80 Mhz clock = 0.0125 us.
 
 /* USER CODE END PD */
 
@@ -169,29 +171,50 @@ void StartCAN_Comm(void *argument)
   uint8_t reversed_array[8], reversed_array_size = 0, reversed_array_elem = 0;
   float distance;
   char string_number[10];
+  SM_STATES state = INIT;
 
   /* Infinite loop */
   for(;;)
   {
-	  xTaskNotifyWait(0, 0, &timer_ticks, pdMS_TO_TICKS(10));
-	  distance = (SPEED_OF_SOUND * TIMER_PERIOD * timer_ticks)/2;
-
-	  itoa(distance, string_number, 10);
-	  print_to_console(string_number);
-
-	  reversed_array_size = number_to_byte_arr(reversed_array, distance);
-	  reversed_array_elem = reversed_array_size;
-
-	  /*Takes the values from the reversed array and populates the array that will be sent via CAN*/
-	  for(uint8_t counter = 0; counter <= reversed_array_size; counter++)
+	  /* USER CODE BEGIN SM_Controller */
+	  switch(state)
 	  {
-		  myTxData[counter] = reversed_array[reversed_array_elem];
-		  reversed_array_elem--;
+	  	  case INIT:  /*Initialize SM*/
+	  		          //
+	  		          state = IDLE;
+	  		  	  	  break;
+
+	  	  case IDLE:  /*IDLE*/
+					   xTaskNotifyWait(0, 0, &timer_ticks, pdMS_TO_TICKS(10));
+					  //distance = ceil((SPEED_OF_SOUND * TIMER_PERIOD * timer_ticks)/2);
+					  distance = (SPEED_OF_SOUND * TIMER_PERIOD * timer_ticks)/2;
+
+					  //itoa(distance, string_number, 10);
+					  sprintf(string_number, "%f", distance);
+					  print_to_console(string_number);
+
+
+					  reversed_array_size = number_to_byte_arr(reversed_array, (uint8_t)distance);
+					  reversed_array_elem = reversed_array_size;
+
+					  /*Takes the values from the reversed array and populates the array that will be sent via CAN*/
+					  for(uint8_t counter = 0; counter <= reversed_array_size; counter++)
+					  {
+						  CAN_Tx_Data[counter] = reversed_array[reversed_array_elem];
+						  reversed_array_elem--;
+					  }
+
+					  reversed_array_size = 0;
+
+					  HAL_FDCAN_AddMessageToTxFifoQ(&hfdcan1, &TxHeader, CAN_Tx_Data); //Sends the distance to the CAN network.
+
+					  state = IDLE;
+	  		          break;
+
+	  	  default:    break;
 	  }
+	  /* USER CODE END SM_Controller */
 
-	  reversed_array_size = 0;
-
-	  HAL_FDCAN_AddMessageToTxFifoQ(&hfdcan1, &TxHeader, myTxData); //Sends the distance to the CAN network.
   }
   /* USER CODE END StartCAN_Comm */
 }
@@ -209,7 +232,7 @@ void led_green_handler(void *argument)
   /* Infinite loop */
   for(;;)
   {
-	  HAL_GPIO_TogglePin(GREEN_LED_GPIO_Port, GREEN_LED_Pin);
+	  //HAL_GPIO_TogglePin(GREEN_LED_GPIO_Port, GREEN_LED_Pin);
       osDelay(1000);
   }
   /* USER CODE END led_green_handler */
@@ -256,7 +279,7 @@ void led_yellow_handler(void *argument)
   /* Infinite loop */
   for(;;)
   {
-	  HAL_GPIO_TogglePin(YELLOW_LED_GPIO_Port, YELLOW_LED_Pin);
+	  //HAL_GPIO_TogglePin(YELLOW_LED_GPIO_Port, YELLOW_LED_Pin);
       osDelay(800);
   }
   /* USER CODE END led_yellow_handler */
@@ -276,7 +299,7 @@ void led_red_handler(void *argument)
   for(;;)
   {
 	  HAL_GPIO_TogglePin(RED_LED_GPIO_Port, RED_LED_Pin);
-      osDelay(400);
+      osDelay(100);
   }
   /* USER CODE END led_red_handler */
 }

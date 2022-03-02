@@ -57,6 +57,8 @@ void Error_Handler(void);
 /* USER CODE END EFP */
 
 /* Private defines -----------------------------------------------------------*/
+#define GREEN_LED_Pin GPIO_PIN_0
+#define GREEN_LED_GPIO_Port GPIOA
 #define ULRT_ECHO_Pin GPIO_PIN_1
 #define ULRT_ECHO_GPIO_Port GPIOA
 #define ULRT_ECHO_EXTI_IRQn EXTI1_IRQn
@@ -66,6 +68,10 @@ void Error_Handler(void);
 #define USART2_RX_GPIO_Port GPIOA
 #define ULTR_TRG_Pin GPIO_PIN_4
 #define ULTR_TRG_GPIO_Port GPIOA
+#define YELLOW_LED_Pin GPIO_PIN_5
+#define YELLOW_LED_GPIO_Port GPIOA
+#define RED_LED_Pin GPIO_PIN_6
+#define RED_LED_GPIO_Port GPIOA
 #define T_SWDIO_Pin GPIO_PIN_13
 #define T_SWDIO_GPIO_Port GPIOA
 #define T_SWCLK_Pin GPIO_PIN_14

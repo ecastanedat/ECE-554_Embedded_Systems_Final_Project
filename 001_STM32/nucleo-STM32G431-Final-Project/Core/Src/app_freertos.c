@@ -36,16 +36,24 @@
 
 /* Private typedef -----------------------------------------------------------*/
 /* USER CODE BEGIN PTD */
+struct memory_buffer
+{
+	uint32_t downcounter;
+	uint8_t enable;
+	uint32_t ticks;
 
+};
 /* USER CODE END PTD */
 
 /* Private define ------------------------------------------------------------*/
 /* USER CODE BEGIN PD */
 #define SPEED_OF_SOUND 34300       // Speed of sound in cm/s.
 #define TIMER_PERIOD 0.0000000125   //80 Mhz clock. Period = 0.0125 us.
-#define OFF    0
-#define ON     1
-#define TOGGLE 2
+#define OFF               0
+#define ON                1
+#define TOGGLE            2
+#define ADJUSTMENT_FACTOR 5
+#define RESTART           1000
 
 /* USER CODE END PD */
 
@@ -172,10 +180,11 @@ void Controller_handler(void *argument)
   /* USER CODE BEGIN Controller_handler */
   uint32_t timer_ticks = 0;
   uint8_t reversed_array[8], reversed_array_size = 0, reversed_array_elem = 0;
-  int8_t delta;
   float distance;
-  char string_number[10];
+  char string_number[20];
   SM_STATES state = INIT;
+  //BaseType_t status;
+  struct memory_buffer memory;
 
   /* Infinite loop */
   for(;;)
@@ -183,62 +192,106 @@ void Controller_handler(void *argument)
 	  /* USER CODE BEGIN SM_Controller */
 	  switch(state)
 	  {
-		  case INIT:  /*Initialize SM*/
+		  case INIT:  /*Initialize the State Machine*/
 					  /*Set to ZERO all LEDs except the Green led*/
 			  	  	  xTaskNotify((TaskHandle_t)led_greenHandle, ON, eSetValueWithOverwrite);
 			  	  	  xTaskNotify((TaskHandle_t)led_yellowHandle, OFF, eSetValueWithOverwrite);
 			  	  	  xTaskNotify((TaskHandle_t)led_redHandle, OFF, eSetValueWithOverwrite);
+			  	  	  memory.downcounter = RESTART;
+			  	  	  memory.enable = OFF;
 
-			  	  	  state = IDLE;
+			  	  	  state = MAIN;
 					  break;
 
-		  case IDLE:  /*IDLE*/
-					   xTaskNotifyWait(0, 0, &timer_ticks, pdMS_TO_TICKS(10));
-					  //distance = ceil((SPEED_OF_SOUND * TIMER_PERIOD * timer_ticks)/2);
-					  distance = (SPEED_OF_SOUND * TIMER_PERIOD * timer_ticks)/2;
+		  case MAIN:   /*MAIN*/
+					   xTaskNotifyWait(0, 0, &timer_ticks, pdMS_TO_TICKS(1));
 
-					  //itoa(distance, string_number, 10);
-					  sprintf(string_number, "%0.4f", distance);
-					  print_to_console(string_number);
+					   //Condition to prevent distance evaluation when calling task sends a small timer value.
+					   if(timer_ticks > 2000)
+					   {
+						   if(memory.enable == ON)
+						   {
+							   timer_ticks = memory.ticks;
+							   memory.downcounter--;
+						   }
 
-					  delta = distance - distance_thershold;
+						   //distance = ceil((SPEED_OF_SOUND * TIMER_PERIOD * timer_ticks)/2);
+						  distance = ((SPEED_OF_SOUND * TIMER_PERIOD * timer_ticks)/2);
 
-					  if(delta <= 0)
-					  {
-						  xTaskNotify((TaskHandle_t)led_redHandle, TOGGLE, eSetValueWithOverwrite);
-						  xTaskNotify((TaskHandle_t)led_greenHandle, OFF, eSetValueWithOverwrite);
-						  xTaskNotify((TaskHandle_t)led_yellowHandle, OFF, eSetValueWithOverwrite);
-					  }
-					  else if(delta > 0 && delta <= 5)
-					  {
-						  xTaskNotify((TaskHandle_t)led_yellowHandle, ON, eSetValueWithOverwrite);
-						  xTaskNotify((TaskHandle_t)led_greenHandle, OFF, eSetValueWithOverwrite);
-					  }
-					  else
-					  {
-						  xTaskNotify((TaskHandle_t)led_yellowHandle, OFF, eSetValueWithOverwrite);
-						  xTaskNotify((TaskHandle_t)led_redHandle, OFF, eSetValueWithOverwrite);
-						  xTaskNotify((TaskHandle_t)led_greenHandle, ON, eSetValueWithOverwrite);
-					  }
+						  sprintf(string_number, "%0.3f", distance);
+						  print_to_console(string_number);
 
-					  reversed_array_size = number_to_byte_arr(reversed_array, (uint8_t)distance);
-					  reversed_array_elem = reversed_array_size;
+						  //delta = distance - distance_danger_thershold;
 
-					  /*Takes the values from the reversed array and populates the array that will be sent via CAN*/
-					  for(uint8_t counter = 0; counter <= reversed_array_size; counter++)
-					  {
-						  CAN_Tx_Data[counter] = reversed_array[reversed_array_elem];
-						  reversed_array_elem--;
-					  }
+						  /*This case will trigger the DANGER ZONE indicator (RED LED)*/
+						  if(distance >= 0 && distance <= distance_danger_thershold)
+						  {
+							   xTaskNotify((TaskHandle_t)led_redHandle, TOGGLE, eSetValueWithOverwrite);
+							   xTaskNotify((TaskHandle_t)led_greenHandle, OFF, eSetValueWithOverwrite);
+							   xTaskNotify((TaskHandle_t)led_yellowHandle, OFF, eSetValueWithOverwrite);
 
-					  reversed_array_size = 0;
+							   if(memory.downcounter == 0)
+							   {
+								   memory.enable = OFF;
+								   memory.downcounter = RESTART;
+							   }
+							   else
+							   {
+								   memory.enable = ON;
+								   memory.ticks = timer_ticks;
+							   }
+						  }
+						  /*This case will trigger the WARNING ZONE indicator (YELLOW LED)*/
+						  else if(distance > distance_danger_thershold && distance <= distance_warning_thershold)
+						  {
+								xTaskNotify((TaskHandle_t)led_yellowHandle, ON, eSetValueWithOverwrite);
+								xTaskNotify((TaskHandle_t)led_greenHandle, OFF, eSetValueWithOverwrite);
+							    xTaskNotify((TaskHandle_t)led_redHandle, OFF, eSetValueWithOverwrite);
 
-					  HAL_FDCAN_AddMessageToTxFifoQ(&hfdcan1, &TxHeader, CAN_Tx_Data); //Sends the distance to the CAN network.
+								memory.enable = ON;
+								memory.ticks = timer_ticks;
 
-					  state = IDLE;
+								if(memory.downcounter == 0)
+								{
+								   memory.enable = OFF;
+								   memory.downcounter = RESTART;
+								}
+								else
+								{
+								   memory.enable = ON;
+								   memory.ticks = timer_ticks;
+								}
+						  }
+						  /*This case will trigger the OK ZONE indicator (GREEN LED)*/
+						  else
+						  {
+							  xTaskNotify((TaskHandle_t)led_yellowHandle, OFF, eSetValueWithOverwrite);
+							  xTaskNotify((TaskHandle_t)led_redHandle, OFF, eSetValueWithOverwrite);
+							  xTaskNotify((TaskHandle_t)led_greenHandle, ON, eSetValueWithOverwrite);
+						  }
+
+						  reversed_array_size = number_to_byte_arr(reversed_array, (uint8_t)distance);
+						  reversed_array_elem = reversed_array_size;
+
+						  /*Takes the values from the reversed array and populates the array that will be sent via CAN*/
+						  for(uint8_t counter = 0; counter <= reversed_array_size; counter++)
+						  {
+							  CAN_Tx_Data[counter] = reversed_array[reversed_array_elem];
+							  reversed_array_elem--;
+						  }
+
+						  reversed_array_size = 0;
+
+						  HAL_FDCAN_AddMessageToTxFifoQ(&hfdcan1, &TxHeader, CAN_Tx_Data); //Sends the distance to the CAN network.
+
+					   }
+
 					  break;
 
-		  default:    break;
+		  case ERROR_handling:  for(;;){}
+			                    break;
+
+		  default:     break;
 	  }
 	  /* USER CODE END SM_Controller */
 
@@ -257,27 +310,24 @@ void led_green_handler(void *argument)
 {
   /* USER CODE BEGIN led_green_handler */
   uint32_t flag;
+  BaseType_t status;
 
   /* Infinite loop */
   for(;;)
   {
 	  //HAL_GPIO_TogglePin(GREEN_LED_GPIO_Port, GREEN_LED_Pin);
-	  xTaskNotifyWait(0, 0, &flag, pdMS_TO_TICKS(100));
+	  status = xTaskNotifyWait(0, 0, &flag, pdMS_TO_TICKS(10));
 
-	  switch(flag)
+	  if(status == pdPASS)
 	  {
-	  	  case ON: HAL_GPIO_WritePin(GREEN_LED_GPIO_Port, GREEN_LED_Pin, ON);
-	               break;
-
-	  	  case OFF: HAL_GPIO_WritePin(GREEN_LED_GPIO_Port, GREEN_LED_Pin, OFF);
-	  	            break;
-
-	  	  case TOGGLE: HAL_GPIO_TogglePin(GREEN_LED_GPIO_Port, GREEN_LED_Pin);
-	  	               break;
-
-	  	  default: break;
+		  switch(flag)
+		  {
+			  case ON:     HAL_GPIO_WritePin(GREEN_LED_GPIO_Port, GREEN_LED_Pin, ON);   break;
+			  case OFF:    HAL_GPIO_WritePin(GREEN_LED_GPIO_Port, GREEN_LED_Pin, OFF);  break;
+			  case TOGGLE: HAL_GPIO_TogglePin(GREEN_LED_GPIO_Port, GREEN_LED_Pin);      break;
+			  default:                                                                  break;
+		  }
 	  }
-
   }
   /* USER CODE END led_green_handler */
 }
@@ -297,15 +347,14 @@ void Start_ultra_sensor_tr(void *argument)
 
   xLastWakeTime = xTaskGetTickCount();
 
-
   /* Infinite loop */
   for(;;)
   {
 	  HAL_GPIO_WritePin(ULTR_TRG_GPIO_Port, ULTR_TRG_Pin, GPIO_PIN_SET);
-	  delay_us(100);
+	  delay_us(100);  //The HC-SR10 needs a delay of 10 us as a minimum for the TRIG to happen.
 	  HAL_GPIO_WritePin(ULTR_TRG_GPIO_Port, ULTR_TRG_Pin, GPIO_PIN_RESET);
 
-      vTaskDelayUntil(&xLastWakeTime, pdMS_TO_TICKS(100));
+      vTaskDelayUntil(&xLastWakeTime, pdMS_TO_TICKS(10));
   }
   /* USER CODE END Start_ultra_sensor_tr */
 }
@@ -321,24 +370,22 @@ void led_yellow_handler(void *argument)
 {
   /* USER CODE BEGIN led_yellow_handler */
   uint32_t flag;
+  BaseType_t status;
 
   /* Infinite loop */
   for(;;)
   {
-	  xTaskNotifyWait(0, 0, &flag, pdMS_TO_TICKS(100));
+	  status = xTaskNotifyWait(0, 0, &flag, pdMS_TO_TICKS(10));
 
-	  switch(flag)
+	  if(status == pdPASS)
 	  {
-		  case ON: HAL_GPIO_WritePin(YELLOW_LED_GPIO_Port, YELLOW_LED_Pin, ON);
-				   break;
-
-		  case OFF: HAL_GPIO_WritePin(YELLOW_LED_GPIO_Port, YELLOW_LED_Pin, OFF);
-				    break;
-
-		  case TOGGLE: HAL_GPIO_TogglePin(YELLOW_LED_GPIO_Port, YELLOW_LED_Pin);
-				       break;
-
-		  default: break;
+		  switch(flag)
+		  {
+			  case ON:     HAL_GPIO_WritePin(YELLOW_LED_GPIO_Port, YELLOW_LED_Pin, ON);  break;
+			  case OFF:    HAL_GPIO_WritePin(YELLOW_LED_GPIO_Port, YELLOW_LED_Pin, OFF); break;
+			  case TOGGLE: HAL_GPIO_TogglePin(YELLOW_LED_GPIO_Port, YELLOW_LED_Pin);     break;
+			  default:                                                                   break;
+		  }
 	  }
   }
   /* USER CODE END led_yellow_handler */
@@ -360,22 +407,18 @@ void led_red_handler(void *argument)
   /* Infinite loop */
   for(;;)
   {
-	  status = xTaskNotifyWait(0, 0, &flag, pdMS_TO_TICKS(100));
+	  status = xTaskNotifyWait(0, 0, &flag, pdMS_TO_TICKS(10));
+
 	  if(status == pdTRUE)
 	  {
 		  switch(flag)
 		  {
-			  case ON: HAL_GPIO_WritePin(RED_LED_GPIO_Port, RED_LED_Pin, ON);
-					   break;
-
-			  case OFF: HAL_GPIO_WritePin(RED_LED_GPIO_Port, RED_LED_Pin, OFF);
-						break;
-
+			  case ON:     HAL_GPIO_WritePin(RED_LED_GPIO_Port, RED_LED_Pin, ON);  break;
+			  case OFF:    HAL_GPIO_WritePin(RED_LED_GPIO_Port, RED_LED_Pin, OFF); break;
 			  case TOGGLE: HAL_GPIO_TogglePin(RED_LED_GPIO_Port, RED_LED_Pin);
-			  	  	  	   vTaskDelay(pdMS_TO_TICKS(100));
+			               vTaskDelay(pdMS_TO_TICKS(100));
 						   break;
-
-			  default: break;
+			  default:     break;
 		  }
 	  }
   }

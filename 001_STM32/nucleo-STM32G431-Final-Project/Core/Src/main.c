@@ -68,7 +68,6 @@ void MX_FREERTOS_Init(void);
 int main(void)
 {
   /* USER CODE BEGIN 1 */
-  distance_thershold = 10;
 
   /* USER CODE END 1 */
 
@@ -85,6 +84,8 @@ int main(void)
   SystemClock_Config();
 
   /* USER CODE BEGIN SysInit */
+  distance_danger_thershold = 10;
+  distance_warning_thershold = 20;
 
   /* USER CODE END SysInit */
 

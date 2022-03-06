@@ -21,7 +21,8 @@
 #include "fdcan.h"
 
 /* USER CODE BEGIN 0 */
-
+//#include "app_freertos.h"
+#include "cmsis_os.h"
 /* USER CODE END 0 */
 
 FDCAN_HandleTypeDef hfdcan1;
@@ -202,8 +203,8 @@ void HAL_FDCAN_RxFifo0Callback(FDCAN_HandleTypeDef *hfdcan, uint32_t RxFifo0ITs)
 	/* Display LEDx */
 	if ((RxHeader.Identifier == 0x124) && (RxHeader.IdType == FDCAN_STANDARD_ID))
 	{
-		HAL_GPIO_TogglePin(LD2_GPIO_Port, LD2_Pin);
-		distance_thershold = CAN_Rx_Data[0];       //Replace global variable with MUTEX.
+		distance_danger_thershold = CAN_Rx_Data[0];       //Replace global variable with MUTEX.
+	    distance_warning_thershold = CAN_Rx_Data[1];
 	}
 
 }

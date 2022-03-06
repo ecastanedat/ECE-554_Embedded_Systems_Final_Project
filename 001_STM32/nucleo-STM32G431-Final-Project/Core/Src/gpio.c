@@ -23,9 +23,9 @@
 
 /* USER CODE BEGIN 0 */
 #include "tim.h"
-#include "cmsis_os.h"
-#include "app_freertos.h"
-#include "stdlib.h"
+//#include "cmsis_os.h"
+//#include "app_freertos.h"
+//#include "stdlib.h"
 /* USER CODE END 0 */
 
 /*----------------------------------------------------------------------------*/
@@ -90,25 +90,16 @@ void HAL_GPIO_EXTI_Callback(uint16_t GPIO_Pin)
 
 	if(GPIO_Pin == ULRT_ECHO_Pin) /* Interrupt function for ECHO signal */
 	{
-		//HAL_GPIO_TogglePin(LD2_GPIO_Port, LD2_Pin);
-
 		state = HAL_GPIO_ReadPin(ULRT_ECHO_GPIO_Port, ULRT_ECHO_Pin);
 
 		switch(state)
 		{
-			case GPIO_PIN_SET:  /*Rising Edge*/
-								__HAL_TIM_SET_COUNTER(&htim2, 0);
-								break;
-
-			case GPIO_PIN_RESET: /*Falling Edge*/
-								 xTaskNotifyFromISR((TaskHandle_t)ControllerHandle, __HAL_TIM_GET_COUNTER(&htim2), eSetValueWithOverwrite, NULL);
-								 break;
-
+			case GPIO_PIN_SET:   __HAL_TIM_SET_COUNTER(&htim2, 0); break; /*Rising Edge*/
+			case GPIO_PIN_RESET: xTaskNotifyFromISR((TaskHandle_t)ControllerHandle, __HAL_TIM_GET_COUNTER(&htim2), eSetValueWithOverwrite, NULL); /*Falling Edge*/
+			                     break;
 			default: break;
 		}
-
 	}
-
 }
 
 /* USER CODE END 2 */

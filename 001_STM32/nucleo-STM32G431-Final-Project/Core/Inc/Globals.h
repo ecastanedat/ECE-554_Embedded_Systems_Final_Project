@@ -13,6 +13,7 @@
 #include "stm32g4xx_hal.h"
 #include "usart.h"
 #include "string.h"
+#include "cmsis_os.h"
 
 /* Data Overhead--------------------------------------------------------------*/
 /* USER CODE BEGIN Data_Overhead */
@@ -25,14 +26,23 @@ struct dataOverhead
 
 typedef enum{
 	INIT,
-	IDLE,
-	STATE_2,
+	MAIN,
+	DANGER,
+	WARNING,
+	ERROR_handling,
 	EXIT
 }SM_STATES;
 
 /* USER CODE END Data_Overhead */
 
-uint8_t distance_thershold;
+uint8_t distance_danger_thershold;
+uint8_t distance_warning_thershold;
+
+osThreadId_t ControllerHandle;
+osThreadId_t led_greenHandle;
+osThreadId_t led_yellowHandle;
+osThreadId_t led_redHandle;
+osThreadId_t ultra_sensor_trHandle;
 
 /* USER CODE BEGIN Prototypes */
 void print_to_console(char *myString);

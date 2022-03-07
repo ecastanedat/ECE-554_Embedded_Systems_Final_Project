@@ -40,7 +40,7 @@ Core/Src/app_freertos.o: ../Core/Src/app_freertos.c \
  ../Drivers/STM32G4xx_HAL_Driver/Inc/stm32g4xx_hal_uart_ex.h \
  ../Middlewares/Third_Party/FreeRTOS/Source/CMSIS_RTOS_V2/cmsis_os.h \
  ../Middlewares/Third_Party/FreeRTOS/Source/CMSIS_RTOS_V2/cmsis_os2.h \
- ../Core/Inc/Globals.h ../Core/Inc/main.h ../Core/Inc/usart.h \
+ ../Core/Inc/Globals.h ../Core/Inc/usart.h ../Core/Inc/main.h \
  ../Core/Inc/fdcan.h ../Core/Inc/Globals.h ../Core/Inc/tim.h \
  ../Core/Inc/app_freertos.h
 
@@ -130,9 +130,9 @@ Core/Src/app_freertos.o: ../Core/Src/app_freertos.c \
 
 ../Core/Inc/Globals.h:
 
-../Core/Inc/main.h:
-
 ../Core/Inc/usart.h:
+
+../Core/Inc/main.h:
 
 ../Core/Inc/fdcan.h:
 

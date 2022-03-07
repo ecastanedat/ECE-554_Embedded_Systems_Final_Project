@@ -36,17 +36,23 @@ extern "C" {
 extern FDCAN_HandleTypeDef hfdcan1;
 
 /* USER CODE BEGIN Private defines */
-FDCAN_TxHeaderTypeDef TxHeader;
-FDCAN_RxHeaderTypeDef RxHeader;
-uint8_t CAN_Tx_Data[8];
-uint8_t CAN_Rx_Data[8];
+
+struct CANobject{
+	FDCAN_TxHeaderTypeDef TxHeader;
+	FDCAN_RxHeaderTypeDef RxHeader;
+	uint8_t Tx_Payload[8];
+	uint8_t Rx_Payload[8];
+};
+
+#define CALIBRATION_ID 0x124
 
 /* USER CODE END Private defines */
 
 void MX_FDCAN1_Init(void);
 
 /* USER CODE BEGIN Prototypes */
-void FDCAN1_MSG_config(void);
+//struct CANobject *GetCANMessage(void);
+struct CANobject *GetCANMessage(uint32_t can_id);
 
 /* USER CODE END Prototypes */
 

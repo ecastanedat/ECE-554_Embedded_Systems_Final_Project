@@ -1,19 +1,26 @@
 /* USER CODE BEGIN Header */
 /**
-  ******************************************************************************
-  * @file           : main.c
-  * @brief          : Main program body
-  ******************************************************************************
-  * @attention
-  *
-  * Copyright (c) 2022 STMicroelectronics.
-  * All rights reserved.
-  *
-  * This software is licensed under terms that can be found in the LICENSE file
-  * in the root directory of this software component.
-  * If no LICENSE file comes with this software, it is provided AS-IS.
-  *
-  ******************************************************************************
+  ============================================================================
+                     University of Michigan - Dearborn
+  ============================================================================
+                   ECE-554 Embedded Systems. Winter 2022
+  ============================================================================
+  %title:             Distance measurement with CAN notification
+  %created_by:        Luis Castaneda-Trejo
+  %date_created:      2/28/2022
+  ============================================================================
+   DESCRIPTION : Real-Time embedded controller capable of measuring the
+   distance of an object in cm and notify its measurement to a CAN network.
+  ============================================================================
+
+  ============================================================================
+                                  REVISION HISTORY
+  ============================================================================
+    REVISION |   DATE      |                               |      AUTHOR
+  ============================================================================
+    0.1      |  10/01/2019   |                             | L. Castaneda
+    0.1.1    |  10/01/2019   |                             | L. Castaneda
+  ============================================================================
   */
 /* USER CODE END Header */
 /* Includes ------------------------------------------------------------------*/
@@ -84,8 +91,6 @@ int main(void)
   SystemClock_Config();
 
   /* USER CODE BEGIN SysInit */
-  distance_danger_thershold = 10;
-  distance_warning_thershold = 20;
 
   /* USER CODE END SysInit */
 
@@ -98,7 +103,7 @@ int main(void)
   MX_TIM8_Init();
   MX_TIM2_Init();
   /* USER CODE BEGIN 2 */
-  FDCAN1_MSG_config();
+  //CAN1_MSG_config();
   HAL_TIM_Base_Start(&htim2);
 
   /* USER CODE END 2 */

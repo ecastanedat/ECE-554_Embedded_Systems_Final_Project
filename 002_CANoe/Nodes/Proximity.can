@@ -6,7 +6,7 @@ includes
 
 variables
 {
-  
+
 }
 
 on message 0x322
@@ -24,7 +24,16 @@ on message 0x322
   }*/
   
   distance = this.byte(1)<<8 | this.byte(0);
-  write("Distance: %d", distance);
+  //write("Distance: %d", distance);
+  
+  if(this.byte(7) == 0x00)
+  {
+    @Distance::Green_LED = 1;
+  }
+  else
+  {
+    @Distance::Green_LED = 0;
+  }
   
 }
 

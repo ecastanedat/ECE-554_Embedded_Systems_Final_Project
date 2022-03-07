@@ -1,5 +1,5 @@
-fdcan.c:31:6:MX_FDCAN1_Init	8	static
-fdcan.c:69:6:HAL_FDCAN_MspInit	112	static
-fdcan.c:112:6:HAL_FDCAN_MspDeInit	16	static
-fdcan.c:138:6:FDCAN1_MSG_config	40	static
-fdcan.c:198:6:HAL_FDCAN_RxFifo0Callback	16	static
+fdcan.c:30:6:MX_FDCAN1_Init	8	static
+fdcan.c:68:6:HAL_FDCAN_MspInit	112	static
+fdcan.c:111:6:HAL_FDCAN_MspDeInit	16	static
+fdcan.c:143:19:GetCANMessage	56	static
+fdcan.c:204:6:HAL_FDCAN_RxFifo0Callback	112	static

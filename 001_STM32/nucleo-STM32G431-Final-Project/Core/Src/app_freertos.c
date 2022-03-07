@@ -29,8 +29,6 @@
 #include "fdcan.h"
 #include "tim.h"
 #include "app_freertos.h"
-#include "stdlib.h"
-#include "math.h"
 #include "stdio.h"
 /* USER CODE END Includes */
 
@@ -185,6 +183,7 @@ void Controller_handler(void *argument)
   SM_STATES state = INIT;
   //BaseType_t status;
   struct memory_buffer memory;
+  struct CANobject *CAN_Message1;
 
   /* Infinite loop */
   for(;;)
@@ -192,16 +191,20 @@ void Controller_handler(void *argument)
 	  /* USER CODE BEGIN SM_Controller */
 	  switch(state)
 	  {
-		  case INIT:  /*Initialize the State Machine*/
-					  /*Set to ZERO all LEDs except the Green led*/
-			  	  	  xTaskNotify((TaskHandle_t)led_greenHandle, ON, eSetValueWithOverwrite);
-			  	  	  xTaskNotify((TaskHandle_t)led_yellowHandle, OFF, eSetValueWithOverwrite);
-			  	  	  xTaskNotify((TaskHandle_t)led_redHandle, OFF, eSetValueWithOverwrite);
-			  	  	  memory.downcounter = RESTART;
-			  	  	  memory.enable = OFF;
+		  case INIT:   /*Initialize the State Machine*/
+			           CAN_Message1 = GetCANMessage(0x322);                                     //Creates a CAN Message object.
 
-			  	  	  state = MAIN;
-					  break;
+			           distance_thresholds.danger = 10;
+			           distance_thresholds.warning = 20;
+
+			           xTaskNotify((TaskHandle_t)led_greenHandle, ON, eSetValueWithOverwrite);   //Sets GREEN led to OFF
+			  	  	   xTaskNotify((TaskHandle_t)led_yellowHandle, OFF, eSetValueWithOverwrite); //Sets YELLOW led to OFF
+			  	  	   xTaskNotify((TaskHandle_t)led_redHandle, OFF, eSetValueWithOverwrite);    //Sets RED led to OFF
+			  	  	   memory.downcounter = RESTART;                                             //Sets the debounce counter to initial value.
+			  	  	   memory.enable = OFF;                                                      //Disables debounce logic.
+
+			  	  	   state = MAIN;
+					   break;
 
 		  case MAIN:   /*MAIN*/
 					   xTaskNotifyWait(0, 0, &timer_ticks, pdMS_TO_TICKS(1));
@@ -215,16 +218,13 @@ void Controller_handler(void *argument)
 							   memory.downcounter--;
 						   }
 
-						   //distance = ceil((SPEED_OF_SOUND * TIMER_PERIOD * timer_ticks)/2);
-						  distance = ((SPEED_OF_SOUND * TIMER_PERIOD * timer_ticks)/2);
+						  distance = (SPEED_OF_SOUND * TIMER_PERIOD * timer_ticks)/2;
 
 						  sprintf(string_number, "%0.3f", distance);
 						  print_to_console(string_number);
 
-						  //delta = distance - distance_danger_thershold;
-
 						  /*This case will trigger the DANGER ZONE indicator (RED LED)*/
-						  if(distance >= 0 && distance <= distance_danger_thershold)
+						  if(distance >= 0 && distance <= distance_thresholds.danger)
 						  {
 							   xTaskNotify((TaskHandle_t)led_redHandle, TOGGLE, eSetValueWithOverwrite);
 							   xTaskNotify((TaskHandle_t)led_greenHandle, OFF, eSetValueWithOverwrite);
@@ -241,10 +241,10 @@ void Controller_handler(void *argument)
 								   memory.ticks = timer_ticks;
 							   }
 
-							   CAN_Tx_Data[7] = 0x02;
+							   CAN_Message1->Tx_Payload[7] = 0x02;     //Danger signal is BIT #2.
 						  }
 						  /*This case will trigger the WARNING ZONE indicator (YELLOW LED)*/
-						  else if(distance > distance_danger_thershold && distance <= distance_warning_thershold)
+						  else if(distance > distance_thresholds.danger && distance <= distance_thresholds.warning)
 						  {
 								xTaskNotify((TaskHandle_t)led_yellowHandle, ON, eSetValueWithOverwrite);
 								xTaskNotify((TaskHandle_t)led_greenHandle, OFF, eSetValueWithOverwrite);
@@ -264,7 +264,7 @@ void Controller_handler(void *argument)
 								   memory.ticks = timer_ticks;
 								}
 
-								CAN_Tx_Data[7] = 0x01;
+								CAN_Message1->Tx_Payload[7] = 0x01;   //Warning signal is BIT #1.
 						  }
 						  /*This case will trigger the OK ZONE indicator (GREEN LED)*/
 						  else
@@ -273,7 +273,7 @@ void Controller_handler(void *argument)
 							  xTaskNotify((TaskHandle_t)led_redHandle, OFF, eSetValueWithOverwrite);
 							  xTaskNotify((TaskHandle_t)led_greenHandle, ON, eSetValueWithOverwrite);
 
-							  CAN_Tx_Data[7] = 0x00;
+							  CAN_Message1->Tx_Payload[7] = 0x00;
 						  }
 
 						  reversed_array_size = number_to_byte_arr(reversed_array, (uint8_t)distance);
@@ -282,22 +282,24 @@ void Controller_handler(void *argument)
 						  /*Takes the values from the reversed array and populates the array that will be sent via CAN*/
 						  for(uint8_t counter = 0; counter <= reversed_array_size; counter++)
 						  {
-							  CAN_Tx_Data[counter] = reversed_array[reversed_array_elem];
+							  CAN_Message1->Tx_Payload[counter] = reversed_array[reversed_array_elem];
 							  reversed_array_elem--;
 						  }
 
 						  reversed_array_size = 0;
 
-
-
-						  HAL_FDCAN_AddMessageToTxFifoQ(&hfdcan1, &TxHeader, CAN_Tx_Data); //Sends the distance to the CAN network.
-
+						  HAL_FDCAN_AddMessageToTxFifoQ(&hfdcan1, &CAN_Message1->TxHeader, CAN_Message1->Tx_Payload); //Sends the distance to the CAN network.
 					   }
 
-					  break;
+					   break;
 
-		  case ERROR_handling:  for(;;){}
-			                    break;
+		  case ERR_h:  /*Case to handle errors prior calling error_handler()*/
+					   HAL_GPIO_WritePin(GREEN_LED_GPIO_Port, GREEN_LED_Pin, ON);
+					   HAL_GPIO_WritePin(RED_LED_GPIO_Port, RED_LED_Pin, ON);
+					   HAL_GPIO_WritePin(YELLOW_LED_GPIO_Port, YELLOW_LED_Pin, ON);
+
+					   Error_Handler();
+					   break;
 
 		  default:     break;
 	  }

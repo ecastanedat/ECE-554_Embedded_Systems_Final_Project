@@ -21,8 +21,7 @@
 #include "fdcan.h"
 
 /* USER CODE BEGIN 0 */
-//#include "app_freertos.h"
-#include "cmsis_os.h"
+#include "stdlib.h"
 /* USER CODE END 0 */
 
 FDCAN_HandleTypeDef hfdcan1;
@@ -135,22 +134,27 @@ void HAL_FDCAN_MspDeInit(FDCAN_HandleTypeDef* fdcanHandle)
 }
 
 /* USER CODE BEGIN 1 */
-void FDCAN1_MSG_config(void)
+
+/**
+  * @brief  Creates the CAN message header and Rx filter.
+  * @param  None
+  * @retval None
+  */
+struct CANobject *GetCANMessage(uint32_t can_id)
 {
 	FDCAN_FilterTypeDef sFilterConfig;
+	struct CANobject *CAN_Message;
 
-	//Prepare CAN data
-	//CAN_Tx_Data[0] = 0x00;
-	//CAN_Tx_Data[1] = 0x00;
-	//CAN_Tx_Data[2] = 0x00;
-	//CAN_Tx_Data[3] = 0x00;
+	CAN_Message = malloc(sizeof(struct CANobject));
+
+	for(uint8_t index = 0; index <= 7; index++) CAN_Message->Tx_Payload[index] = 0x00;     //Cleans the msg payload.
 
 	/* Configure Rx filter */
 	sFilterConfig.IdType = FDCAN_STANDARD_ID;
 	sFilterConfig.FilterIndex = 0;
 	sFilterConfig.FilterType = FDCAN_FILTER_MASK;
 	sFilterConfig.FilterConfig = FDCAN_FILTER_TO_RXFIFO0;
-	sFilterConfig.FilterID1 = 0x124;
+	sFilterConfig.FilterID1 = CALIBRATION_ID;
 	sFilterConfig.FilterID2 = 0x7FF;
 	if (HAL_FDCAN_ConfigFilter(&hfdcan1, &sFilterConfig) != HAL_OK)
 	{
@@ -163,28 +167,30 @@ void FDCAN1_MSG_config(void)
 	    Error_Handler();
 	}
 
-	/* Activate Rx FIFO 0 watermark notification */
+	/* Activate Rx FIFO 0 notification */
 	if (HAL_FDCAN_ActivateNotification(&hfdcan1, FDCAN_IT_RX_FIFO0_NEW_MESSAGE, 0) != HAL_OK)
 	{
 	    Error_Handler();
 	}
 
 	/* Prepare Tx Header */
-	TxHeader.Identifier = 0x322;
-	TxHeader.IdType = FDCAN_STANDARD_ID;
-	TxHeader.TxFrameType = FDCAN_DATA_FRAME;
-	TxHeader.DataLength = FDCAN_DLC_BYTES_8;
-	TxHeader.ErrorStateIndicator = FDCAN_ESI_ACTIVE;
-	TxHeader.BitRateSwitch = FDCAN_BRS_OFF;
-	TxHeader.FDFormat = FDCAN_CLASSIC_CAN;
-	TxHeader.TxEventFifoControl = FDCAN_NO_TX_EVENTS;
-	TxHeader.MessageMarker = 0;
+	CAN_Message->TxHeader.Identifier = can_id;
+	CAN_Message->TxHeader.IdType = FDCAN_STANDARD_ID;
+	CAN_Message->TxHeader.TxFrameType = FDCAN_DATA_FRAME;
+	CAN_Message->TxHeader.DataLength = FDCAN_DLC_BYTES_8;
+	CAN_Message->TxHeader.ErrorStateIndicator = FDCAN_ESI_ACTIVE;
+	CAN_Message->TxHeader.BitRateSwitch = FDCAN_BRS_OFF;
+	CAN_Message->TxHeader.FDFormat = FDCAN_CLASSIC_CAN;
+	CAN_Message->TxHeader.TxEventFifoControl = FDCAN_NO_TX_EVENTS;
+	CAN_Message->TxHeader.MessageMarker = 0;
 
 	/* Start the FDCAN module */
 	if (HAL_FDCAN_Start(&hfdcan1) != HAL_OK)
 	{
 	    Error_Handler();
 	}
+
+	return CAN_Message;
 }
 
 /**
@@ -197,14 +203,16 @@ void FDCAN1_MSG_config(void)
   */
 void HAL_FDCAN_RxFifo0Callback(FDCAN_HandleTypeDef *hfdcan, uint32_t RxFifo0ITs)
 {
-	/* Retrieve Rx messages from RX FIFO0 */
-	HAL_FDCAN_GetRxMessage(hfdcan, FDCAN_RX_FIFO0, &RxHeader, CAN_Rx_Data);
+	struct CANobject CAN_Message;
 
-	/* Display LEDx */
-	if ((RxHeader.Identifier == 0x124) && (RxHeader.IdType == FDCAN_STANDARD_ID))
+	/* Retrieve Rx messages from RX FIFO0*/
+	HAL_FDCAN_GetRxMessage(hfdcan, FDCAN_RX_FIFO0, &CAN_Message.RxHeader, CAN_Message.Rx_Payload);
+
+	/* Check if CAN msg is standard CAN and if identifier is the calibration id (0x124) */
+	if ((CAN_Message.RxHeader.Identifier == CALIBRATION_ID) && (CAN_Message.RxHeader.IdType == FDCAN_STANDARD_ID))
 	{
-		distance_danger_thershold = CAN_Rx_Data[0];       //Replace global variable with MUTEX.
-	    distance_warning_thershold = CAN_Rx_Data[1];
+		distance_thresholds.danger = CAN_Message.Rx_Payload[0];       //Sets the new danger threshold value.
+	    distance_thresholds.warning = CAN_Message.Rx_Payload[1];      //Sets the new warning threshold value.
 	}
 
 }

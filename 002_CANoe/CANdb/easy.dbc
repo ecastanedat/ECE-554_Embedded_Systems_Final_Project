@@ -33,13 +33,13 @@ NS_ :
 
 BS_:
 
-BU_: ADAS Engine Display Light
+BU_: Engine Display Light
 
 
 BO_ 802 DistanceSensor: 8 Vector__XXX
- SG_ Danger : 57|1@1+ (1,0) [0|0] ""  ADAS
- SG_ Warning : 56|1@1+ (1,0) [0|0] ""  ADAS
- SG_ Distance : 0|56@1+ (1,0) [0|0] "cm"  ADAS
+ SG_ Danger : 57|1@1+ (1,0) [0|0] "" Vector__XXX
+ SG_ Warning : 56|1@1+ (1,0) [0|0] "" Vector__XXX
+ SG_ Distance : 0|56@1+ (1,0) [0|0] "cm" Vector__XXX
 
 BO_ 291 EngineState: 2 Engine
  SG_ EngineSpeed : 1|15@1- (1,0) [0|0] "rpm"  Display

@@ -71,7 +71,7 @@ struct memory_buffer
 const osThreadAttr_t Controller_attributes = {
   .name = "Controller",
   .priority = (osPriority_t) osPriorityNormal,
-  .stack_size = 200 * 4
+  .stack_size = 300 * 4
 };
 /* Definitions for led_green */
 //osThreadId_t led_greenHandle;
@@ -240,6 +240,8 @@ void Controller_handler(void *argument)
 								   memory.enable = ON;
 								   memory.ticks = timer_ticks;
 							   }
+
+							   CAN_Tx_Data[7] = 0x02;
 						  }
 						  /*This case will trigger the WARNING ZONE indicator (YELLOW LED)*/
 						  else if(distance > distance_danger_thershold && distance <= distance_warning_thershold)
@@ -261,6 +263,8 @@ void Controller_handler(void *argument)
 								   memory.enable = ON;
 								   memory.ticks = timer_ticks;
 								}
+
+								CAN_Tx_Data[7] = 0x01;
 						  }
 						  /*This case will trigger the OK ZONE indicator (GREEN LED)*/
 						  else
@@ -268,6 +272,8 @@ void Controller_handler(void *argument)
 							  xTaskNotify((TaskHandle_t)led_yellowHandle, OFF, eSetValueWithOverwrite);
 							  xTaskNotify((TaskHandle_t)led_redHandle, OFF, eSetValueWithOverwrite);
 							  xTaskNotify((TaskHandle_t)led_greenHandle, ON, eSetValueWithOverwrite);
+
+							  CAN_Tx_Data[7] = 0x00;
 						  }
 
 						  reversed_array_size = number_to_byte_arr(reversed_array, (uint8_t)distance);
@@ -281,6 +287,8 @@ void Controller_handler(void *argument)
 						  }
 
 						  reversed_array_size = 0;
+
+
 
 						  HAL_FDCAN_AddMessageToTxFifoQ(&hfdcan1, &TxHeader, CAN_Tx_Data); //Sends the distance to the CAN network.
 

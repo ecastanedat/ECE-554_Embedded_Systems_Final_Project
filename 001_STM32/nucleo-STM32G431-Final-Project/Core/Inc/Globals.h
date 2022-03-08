@@ -2,7 +2,7 @@
  * Globals.h
  *
  *  Created on: Nov 29, 2021
- *      Author: uib01493
+ *      Author: Luis Castaneda-Trejo
  */
 
 #ifndef INC_GLOBALS_H_
@@ -13,20 +13,12 @@
 #include "string.h"
 #include "cmsis_os.h"
 
-/* Data Overhead--------------------------------------------------------------*/
-/* USER CODE BEGIN Data_Overhead */
-
 typedef enum{
 	INIT,
 	MAIN,
 	ERR_h,
 	EXIT
 }SM_STATES;
-
-/* USER CODE END Data_Overhead */
-
-//uint8_t distance_danger_thershold;
-//uint8_t distance_warning_thershold;
 
 struct distance{
 	uint8_t danger;

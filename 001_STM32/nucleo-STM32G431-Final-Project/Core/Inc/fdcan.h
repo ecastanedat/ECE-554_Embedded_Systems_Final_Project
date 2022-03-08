@@ -37,12 +37,12 @@ extern FDCAN_HandleTypeDef hfdcan1;
 
 /* USER CODE BEGIN Private defines */
 
-struct CANobject{
+typedef struct CANobject{
 	FDCAN_TxHeaderTypeDef TxHeader;
 	FDCAN_RxHeaderTypeDef RxHeader;
 	uint8_t Tx_Payload[8];
 	uint8_t Rx_Payload[8];
-};
+}CANobject;
 
 #define CALIBRATION_ID 0x124
 

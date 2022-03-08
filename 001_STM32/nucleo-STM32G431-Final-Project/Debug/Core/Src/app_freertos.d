@@ -41,8 +41,7 @@ Core/Src/app_freertos.o: ../Core/Src/app_freertos.c \
  ../Middlewares/Third_Party/FreeRTOS/Source/CMSIS_RTOS_V2/cmsis_os.h \
  ../Middlewares/Third_Party/FreeRTOS/Source/CMSIS_RTOS_V2/cmsis_os2.h \
  ../Core/Inc/Globals.h ../Core/Inc/usart.h ../Core/Inc/main.h \
- ../Core/Inc/fdcan.h ../Core/Inc/Globals.h ../Core/Inc/tim.h \
- ../Core/Inc/app_freertos.h
+ ../Core/Inc/fdcan.h ../Core/Inc/Globals.h ../Core/Inc/tim.h
 
 ../Middlewares/Third_Party/FreeRTOS/Source/include/FreeRTOS.h:
 
@@ -139,5 +138,3 @@ Core/Src/app_freertos.o: ../Core/Src/app_freertos.c \
 ../Core/Inc/Globals.h:
 
 ../Core/Inc/tim.h:
-
-../Core/Inc/app_freertos.h:

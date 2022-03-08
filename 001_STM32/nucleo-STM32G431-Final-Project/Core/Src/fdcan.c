@@ -137,15 +137,15 @@ void HAL_FDCAN_MspDeInit(FDCAN_HandleTypeDef* fdcanHandle)
 
 /**
   * @brief  Creates the CAN message header and Rx filter.
-  * @param  None
-  * @retval None
+  * @param  Desired CAN ID
+  * @retval Pointer to CAN Message object.
   */
 struct CANobject *GetCANMessage(uint32_t can_id)
 {
 	FDCAN_FilterTypeDef sFilterConfig;
 	struct CANobject *CAN_Message;
 
-	CAN_Message = malloc(sizeof(struct CANobject));
+	CAN_Message = malloc(sizeof(struct CANobject));                                        //Memory reservation for new CAN msg object.
 
 	for(uint8_t index = 0; index <= 7; index++) CAN_Message->Tx_Payload[index] = 0x00;     //Cleans the msg payload.
 
@@ -203,7 +203,7 @@ struct CANobject *GetCANMessage(uint32_t can_id)
   */
 void HAL_FDCAN_RxFifo0Callback(FDCAN_HandleTypeDef *hfdcan, uint32_t RxFifo0ITs)
 {
-	struct CANobject CAN_Message;
+	CANobject CAN_Message;
 
 	/* Retrieve Rx messages from RX FIFO0*/
 	HAL_FDCAN_GetRxMessage(hfdcan, FDCAN_RX_FIFO0, &CAN_Message.RxHeader, CAN_Message.Rx_Payload);

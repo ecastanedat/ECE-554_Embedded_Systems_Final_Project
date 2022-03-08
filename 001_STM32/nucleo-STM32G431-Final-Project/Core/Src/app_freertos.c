@@ -4,16 +4,6 @@
   * File Name          : app_freertos.c
   * Description        : Code for freertos applications
   ******************************************************************************
-  * @attention
-  *
-  * Copyright (c) 2022 STMicroelectronics.
-  * All rights reserved.
-  *
-  * This software is licensed under terms that can be found in the LICENSE file
-  * in the root directory of this software component.
-  * If no LICENSE file comes with this software, it is provided AS-IS.
-  *
-  ******************************************************************************
   */
 /* USER CODE END Header */
 
@@ -28,30 +18,28 @@
 #include "Globals.h"
 #include "fdcan.h"
 #include "tim.h"
-#include "app_freertos.h"
 #include "stdio.h"
 /* USER CODE END Includes */
 
 /* Private typedef -----------------------------------------------------------*/
 /* USER CODE BEGIN PTD */
-struct memory_buffer
+typedef struct memory_buffer
 {
 	uint32_t downcounter;
 	uint8_t enable;
 	uint32_t ticks;
-
-};
+}mBuff;
 /* USER CODE END PTD */
 
 /* Private define ------------------------------------------------------------*/
 /* USER CODE BEGIN PD */
-#define SPEED_OF_SOUND 34300       // Speed of sound in cm/s.
-#define TIMER_PERIOD 0.0000000125   //80 Mhz clock. Period = 0.0125 us.
+#define SPEED_OF_SOUND    34300          // Speed of sound in cm/s.
+#define TIMER_PERIOD      0.0000000125   //80 Mhz clock. Period = 0.0125 us.
 #define OFF               0
 #define ON                1
 #define TOGGLE            2
 #define ADJUSTMENT_FACTOR 5
-#define RESTART           1000
+#define RESTART           100
 
 /* USER CODE END PD */
 
@@ -181,9 +169,9 @@ void Controller_handler(void *argument)
   float distance;
   char string_number[20];
   SM_STATES state = INIT;
-  //BaseType_t status;
-  struct memory_buffer memory;
-  struct CANobject *CAN_Message1;
+  BaseType_t status;
+  mBuff debounce;
+  CANobject *CAN_Message1;
 
   /* Infinite loop */
   for(;;)
@@ -200,25 +188,25 @@ void Controller_handler(void *argument)
 			           xTaskNotify((TaskHandle_t)led_greenHandle, ON, eSetValueWithOverwrite);   //Sets GREEN led to OFF
 			  	  	   xTaskNotify((TaskHandle_t)led_yellowHandle, OFF, eSetValueWithOverwrite); //Sets YELLOW led to OFF
 			  	  	   xTaskNotify((TaskHandle_t)led_redHandle, OFF, eSetValueWithOverwrite);    //Sets RED led to OFF
-			  	  	   memory.downcounter = RESTART;                                             //Sets the debounce counter to initial value.
-			  	  	   memory.enable = OFF;                                                      //Disables debounce logic.
+			  	  	   debounce.downcounter = RESTART;                                           //Sets the debounce counter to initial value.
+			  	  	   debounce.enable = OFF;                                                    //Disables debounce logic.
 
 			  	  	   state = MAIN;
 					   break;
 
 		  case MAIN:   /*MAIN*/
-					   xTaskNotifyWait(0, 0, &timer_ticks, pdMS_TO_TICKS(1));
+					   status = xTaskNotifyWait(0, 0, &timer_ticks, pdMS_TO_TICKS(20));
 
-					   //Condition to prevent distance evaluation when calling task sends a small timer value.
-					   if(timer_ticks > 2000)
+					   if(status == pdPASS)
 					   {
-						   if(memory.enable == ON)
+						   if(debounce.enable == ON)
 						   {
-							   timer_ticks = memory.ticks;
-							   memory.downcounter--;
+							   timer_ticks = debounce.ticks;                                     //Uses the debounce ticks to prevent bouncing.
+							   debounce.downcounter--;
 						   }
 
-						  distance = (SPEED_OF_SOUND * TIMER_PERIOD * timer_ticks)/2;
+						  distance = (SPEED_OF_SOUND * TIMER_PERIOD * timer_ticks)/2;            //Divided by 2 because sound goes from the sensor to object
+						  	  	  	  	  	  	  	  	  	  	  	  	  	  	  	  	  	  	 //and back to the sensor.
 
 						  sprintf(string_number, "%0.3f", distance);
 						  print_to_console(string_number);
@@ -230,15 +218,15 @@ void Controller_handler(void *argument)
 							   xTaskNotify((TaskHandle_t)led_greenHandle, OFF, eSetValueWithOverwrite);
 							   xTaskNotify((TaskHandle_t)led_yellowHandle, OFF, eSetValueWithOverwrite);
 
-							   if(memory.downcounter == 0)
+							   if(debounce.downcounter == 0)
 							   {
-								   memory.enable = OFF;
-								   memory.downcounter = RESTART;
+								   debounce.enable = OFF;              //Once debounce memory buffer finish offload. Disable debounce mem buffer.
+								   debounce.downcounter = RESTART;
 							   }
 							   else
 							   {
-								   memory.enable = ON;
-								   memory.ticks = timer_ticks;
+								   debounce.enable = ON;               //Enables debounce memory buffer if previous cycle was OK(GREEN LED).
+								   debounce.ticks = timer_ticks;       //Holder for ticks. Will be used for the upcoming cycles.
 							   }
 
 							   CAN_Message1->Tx_Payload[7] = 0x02;     //Danger signal is BIT #2.
@@ -250,21 +238,18 @@ void Controller_handler(void *argument)
 								xTaskNotify((TaskHandle_t)led_greenHandle, OFF, eSetValueWithOverwrite);
 							    xTaskNotify((TaskHandle_t)led_redHandle, OFF, eSetValueWithOverwrite);
 
-								memory.enable = ON;
-								memory.ticks = timer_ticks;
-
-								if(memory.downcounter == 0)
+								if(debounce.downcounter == 0)          //Same above logic applies to the WARNING case.
 								{
-								   memory.enable = OFF;
-								   memory.downcounter = RESTART;
+									debounce.enable = OFF;
+									debounce.downcounter = RESTART;
 								}
 								else
 								{
-								   memory.enable = ON;
-								   memory.ticks = timer_ticks;
+									debounce.enable = ON;
+									debounce.ticks = timer_ticks;
 								}
 
-								CAN_Message1->Tx_Payload[7] = 0x01;   //Warning signal is BIT #1.
+								CAN_Message1->Tx_Payload[7] = 0x01;    //Warning signal is BIT #1.
 						  }
 						  /*This case will trigger the OK ZONE indicator (GREEN LED)*/
 						  else
@@ -273,7 +258,7 @@ void Controller_handler(void *argument)
 							  xTaskNotify((TaskHandle_t)led_redHandle, OFF, eSetValueWithOverwrite);
 							  xTaskNotify((TaskHandle_t)led_greenHandle, ON, eSetValueWithOverwrite);
 
-							  CAN_Message1->Tx_Payload[7] = 0x00;
+							  CAN_Message1->Tx_Payload[7] = 0x00;       //No Warning or Danger signals.
 						  }
 
 						  reversed_array_size = number_to_byte_arr(reversed_array, (uint8_t)distance);
@@ -290,6 +275,8 @@ void Controller_handler(void *argument)
 
 						  HAL_FDCAN_AddMessageToTxFifoQ(&hfdcan1, &CAN_Message1->TxHeader, CAN_Message1->Tx_Payload); //Sends the distance to the CAN network.
 					   }
+					   else
+						   print_to_console("Waiting for sensor data...");
 
 					   break;
 

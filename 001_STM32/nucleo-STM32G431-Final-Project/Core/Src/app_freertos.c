@@ -50,6 +50,7 @@ typedef struct memory_buffer
 
 /* Private variables ---------------------------------------------------------*/
 /* USER CODE BEGIN Variables */
+CANobject *CAN_Message1;
 
 /* USER CODE END Variables */
 /* Definitions for Controller */
@@ -94,6 +95,13 @@ const osThreadAttr_t CAN_Rx_Ctrlr_attributes = {
   .priority = (osPriority_t) osPriorityNormal,
   .stack_size = 300 * 4
 };
+/* Definitions for CAN_Tx_Ctrlr */
+//osThreadId_t CAN_Tx_CtrlrHandle;
+const osThreadAttr_t CAN_Tx_Ctrlr_attributes = {
+  .name = "CAN_Tx_Ctrlr",
+  .priority = (osPriority_t) osPriorityNormal,
+  .stack_size = 128 * 4
+};
 
 /* Private function prototypes -----------------------------------------------*/
 /* USER CODE BEGIN FunctionPrototypes */
@@ -107,6 +115,7 @@ void Start_ultra_sensor_tr(void *argument);
 void led_yellow_handler(void *argument);
 void led_red_handler(void *argument);
 void CAN_Rx_Ctrlr_handler(void *argument);
+void CAN_Tx_Ctrlr_handler(void *argument);
 
 void MX_FREERTOS_Init(void); /* (MISRA C 2004 rule 8.1) */
 
@@ -155,6 +164,9 @@ void MX_FREERTOS_Init(void) {
   /* creation of CAN_Rx_Ctrlr */
   CAN_Rx_CtrlrHandle = osThreadNew(CAN_Rx_Ctrlr_handler, NULL, &CAN_Rx_Ctrlr_attributes);
 
+  /* creation of CAN_Tx_Ctrlr */
+  CAN_Tx_CtrlrHandle = osThreadNew(CAN_Tx_Ctrlr_handler, NULL, &CAN_Tx_Ctrlr_attributes);
+
   /* USER CODE BEGIN RTOS_THREADS */
   /* add threads, ... */
   /* USER CODE END RTOS_THREADS */
@@ -182,7 +194,6 @@ void Controller_handler(void *argument)
   SM_STATES state = INIT;
   BaseType_t status;
   mBuff debounce;
-  CANobject *CAN_Message1;
 
   /* Infinite loop */
   for(;;)
@@ -286,7 +297,8 @@ void Controller_handler(void *argument)
 
 						  reversed_array_size = 0;
 
-						  HAL_FDCAN_AddMessageToTxFifoQ(&hfdcan1, &CAN_Message1->TxHeader, CAN_Message1->Tx_Payload); //Sends the distance to the CAN network.
+						  xTaskNotify((TaskHandle_t)CAN_Tx_CtrlrHandle, 0, eNoAction);
+						  //HAL_FDCAN_AddMessageToTxFifoQ(&hfdcan1, &CAN_Message1->TxHeader, CAN_Message1->Tx_Payload); //Sends the distance to the CAN network.
 					   }
 					   else
 						   print_to_console("Waiting for sensor data...");
@@ -457,8 +469,6 @@ void CAN_Rx_Ctrlr_handler(void *argument)
 	  if(status == pdPASS)
 	  {
 
-		  HAL_GPIO_TogglePin(LD2_GPIO_Port, LD2_Pin);
-
 		  if(CAN_MSG_Received.Rx_Payload[1] == 0x22 && CAN_MSG_Received.Rx_Payload[2] == 0xFE)
 		  {
 			  switch(CAN_MSG_Received.Rx_Payload[3])
@@ -478,9 +488,20 @@ void CAN_Rx_Ctrlr_handler(void *argument)
 
 			    	          break;
 
-			       case 0x02: break;
+			       case 0x02: /*CONFIGURATION CASE: Distance notification mode */
+			    	          if(CAN_MSG_Received.Rx_Payload[4] == 0x01)                         //Continuous mode
+			    	          {
 
-			       default:   break;
+			    	          }
+			    	          break;
+
+			       default:   CAN_MessageRx->Tx_Payload[0] = 0x07;                               //Sets the 0x762 header for response part 1.
+					          CAN_MessageRx->Tx_Payload[1] = 0x62;								 //Sets the 0x762 header for response part 2.
+					          CAN_MessageRx->Tx_Payload[2] = 0x7F;								 //Negative Response.
+
+					          HAL_FDCAN_AddMessageToTxFifoQ(&hfdcan1, &CAN_MessageRx->TxHeader, CAN_MessageRx->Tx_Payload); //Sends negative response.
+
+					          break;
 			  }
 		  }
 		  else
@@ -496,6 +517,32 @@ void CAN_Rx_Ctrlr_handler(void *argument)
 
   }
   /* USER CODE END CAN_Rx_Ctrlr_handler */
+}
+
+/* USER CODE BEGIN Header_CAN_Tx_Ctrlr_handler */
+/**
+* @brief Function implementing the CAN_Tx_Ctrlr thread.
+* @param argument: Not used
+* @retval None
+*/
+/* USER CODE END Header_CAN_Tx_Ctrlr_handler */
+void CAN_Tx_Ctrlr_handler(void *argument)
+{
+  /* USER CODE BEGIN CAN_Tx_Ctrlr_handler */
+  BaseType_t status;
+
+  /* Infinite loop */
+  for(;;)
+  {
+	  status = xTaskNotifyWait(0, 0, NULL, pdMS_TO_TICKS(20));
+	  if(status == pdPASS)
+	  {
+		  //HAL_GPIO_TogglePin(LD2_GPIO_Port, LD2_Pin);
+		  HAL_FDCAN_AddMessageToTxFifoQ(&hfdcan1, &CAN_Message1->TxHeader, CAN_Message1->Tx_Payload); //Sends the distance to the CAN network.
+	  }
+
+  }
+  /* USER CODE END CAN_Tx_Ctrlr_handler */
 }
 
 /* Private application code --------------------------------------------------*/

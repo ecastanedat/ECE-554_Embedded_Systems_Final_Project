@@ -1,7 +1,8 @@
-app_freertos.c:110:6:MX_FREERTOS_Init	8	static
-app_freertos.c:164:6:Controller_handler	80	static
-app_freertos.c:306:6:led_green_handler	24	static
-app_freertos.c:339:6:Start_ultra_sensor_tr	24	static
-app_freertos.c:366:6:led_yellow_handler	24	static
-app_freertos.c:398:6:led_red_handler	24	static
-app_freertos.c:432:9:number_to_byte_arr	24	static
+app_freertos.c:118:6:MX_FREERTOS_Init	8	static
+app_freertos.c:175:6:Controller_handler	80	static
+app_freertos.c:319:6:led_green_handler	24	static
+app_freertos.c:352:6:Start_ultra_sensor_tr	24	static
+app_freertos.c:379:6:led_yellow_handler	24	static
+app_freertos.c:411:6:led_red_handler	24	static
+app_freertos.c:445:6:CAN_Rx_Ctrlr_handler	24	static
+app_freertos.c:508:9:number_to_byte_arr	24	static

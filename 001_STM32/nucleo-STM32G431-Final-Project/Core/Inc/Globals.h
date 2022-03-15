@@ -30,6 +30,7 @@ osThreadId_t led_greenHandle;
 osThreadId_t led_yellowHandle;
 osThreadId_t led_redHandle;
 osThreadId_t ultra_sensor_trHandle;
+osThreadId_t CAN_Rx_CtrlrHandle;
 
 /* USER CODE BEGIN Prototypes */
 void print_to_console(char *myString);

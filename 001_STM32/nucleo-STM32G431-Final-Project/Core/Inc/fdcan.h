@@ -44,7 +44,9 @@ typedef struct CANobject{
 	uint8_t Rx_Payload[8];
 }CANobject;
 
-#define CALIBRATION_ID 0x124
+CANobject CAN_MSG_Received;
+
+#define CALIBRATION_ID 0x726
 
 /* USER CODE END Private defines */
 
@@ -53,6 +55,8 @@ void MX_FDCAN1_Init(void);
 /* USER CODE BEGIN Prototypes */
 //struct CANobject *GetCANMessage(void);
 struct CANobject *GetCANMessage(uint32_t can_id);
+void Prepare_CANFilter(void);
+void CAN_Start(void);
 
 /* USER CODE END Prototypes */
 

@@ -87,6 +87,13 @@ const osThreadAttr_t led_red_attributes = {
   .priority = (osPriority_t) osPriorityNormal,
   .stack_size = 128 * 4
 };
+/* Definitions for CAN_Rx_Ctrlr */
+//osThreadId_t CAN_Rx_CtrlrHandle;
+const osThreadAttr_t CAN_Rx_Ctrlr_attributes = {
+  .name = "CAN_Rx_Ctrlr",
+  .priority = (osPriority_t) osPriorityNormal,
+  .stack_size = 300 * 4
+};
 
 /* Private function prototypes -----------------------------------------------*/
 /* USER CODE BEGIN FunctionPrototypes */
@@ -99,6 +106,7 @@ void led_green_handler(void *argument);
 void Start_ultra_sensor_tr(void *argument);
 void led_yellow_handler(void *argument);
 void led_red_handler(void *argument);
+void CAN_Rx_Ctrlr_handler(void *argument);
 
 void MX_FREERTOS_Init(void); /* (MISRA C 2004 rule 8.1) */
 
@@ -144,6 +152,9 @@ void MX_FREERTOS_Init(void) {
   /* creation of led_red */
   led_redHandle = osThreadNew(led_red_handler, NULL, &led_red_attributes);
 
+  /* creation of CAN_Rx_Ctrlr */
+  CAN_Rx_CtrlrHandle = osThreadNew(CAN_Rx_Ctrlr_handler, NULL, &CAN_Rx_Ctrlr_attributes);
+
   /* USER CODE BEGIN RTOS_THREADS */
   /* add threads, ... */
   /* USER CODE END RTOS_THREADS */
@@ -180,7 +191,9 @@ void Controller_handler(void *argument)
 	  switch(state)
 	  {
 		  case INIT:   /*Initialize the State Machine*/
+			           Prepare_CANFilter();
 			           CAN_Message1 = GetCANMessage(0x322);                                     //Creates a CAN Message object.
+			           CAN_Start();
 
 			           distance_thresholds.danger = 10;
 			           distance_thresholds.warning = 20;
@@ -420,6 +433,69 @@ void led_red_handler(void *argument)
 	  }
   }
   /* USER CODE END led_red_handler */
+}
+
+/* USER CODE BEGIN Header_CAN_Rx_Ctrlr_handler */
+/**
+* @brief Function implementing the CAN_Rx_Ctrlr thread.
+* @param argument: Not used
+* @retval None
+*/
+/* USER CODE END Header_CAN_Rx_Ctrlr_handler */
+void CAN_Rx_Ctrlr_handler(void *argument)
+{
+  /* USER CODE BEGIN CAN_Rx_Ctrlr_handler */
+  BaseType_t status;
+  CANobject *CAN_MessageRx;
+
+  CAN_MessageRx = GetCANMessage(0x72E);                                                          //Creates a CAN Message object.
+
+  /* Infinite loop */
+  for(;;)
+  {
+	  status = xTaskNotifyWait(0, 0, NULL, pdMS_TO_TICKS(20));
+	  if(status == pdPASS)
+	  {
+
+		  HAL_GPIO_TogglePin(LD2_GPIO_Port, LD2_Pin);
+
+		  if(CAN_MSG_Received.Rx_Payload[1] == 0x22 && CAN_MSG_Received.Rx_Payload[2] == 0xFE)
+		  {
+			  switch(CAN_MSG_Received.Rx_Payload[3])
+			  {
+			       case 0x01: /*CONFIGURATION CASE: Update Thresholds*/
+			    	          distance_thresholds.danger  = CAN_MSG_Received.Rx_Payload[4];      //Sets the new danger threshold value.
+			       	   	   	  distance_thresholds.warning = CAN_MSG_Received.Rx_Payload[5];      //Sets the new warning threshold value.
+
+			       	   	      CAN_MessageRx->Tx_Payload[0] = 0x07;                               //Sets the 0x762 header for response part 1.
+			       	   	      CAN_MessageRx->Tx_Payload[1] = 0x62;								 //Sets the 0x762 header for response part 2.
+			       	   	      CAN_MessageRx->Tx_Payload[2] = 0xFE;                               //Sets the DID number.
+			       	   	      CAN_MessageRx->Tx_Payload[3] = 0x01;                               //Sets the DID configuration case.
+			       	   	      CAN_MessageRx->Tx_Payload[4] = CAN_MSG_Received.Rx_Payload[4];     //Sets the acknowledge danger threshold.
+			       	   	      CAN_MessageRx->Tx_Payload[5] = CAN_MSG_Received.Rx_Payload[5];     //Sets the acknowledge warning threshold.
+
+			       	   	   	  HAL_FDCAN_AddMessageToTxFifoQ(&hfdcan1, &CAN_MessageRx->TxHeader, CAN_MessageRx->Tx_Payload); //Sends positive acknowledgment.
+
+			    	          break;
+
+			       case 0x02: break;
+
+			       default:   break;
+			  }
+		  }
+		  else
+		  {
+			  CAN_MessageRx->Tx_Payload[0] = 0x07;                               //Sets the 0x762 header for response part 1.
+			  CAN_MessageRx->Tx_Payload[1] = 0x62;								 //Sets the 0x762 header for response part 2.
+			  CAN_MessageRx->Tx_Payload[2] = 0x7F;								 //Negative Response.
+
+			  HAL_FDCAN_AddMessageToTxFifoQ(&hfdcan1, &CAN_MessageRx->TxHeader, CAN_MessageRx->Tx_Payload); //Sends negative response.
+		  }
+
+	  }
+
+  }
+  /* USER CODE END CAN_Rx_Ctrlr_handler */
 }
 
 /* Private application code --------------------------------------------------*/

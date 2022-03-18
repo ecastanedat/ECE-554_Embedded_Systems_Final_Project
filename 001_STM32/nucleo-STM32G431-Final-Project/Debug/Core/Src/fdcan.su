@@ -5,3 +5,4 @@ fdcan.c:138:6:Prepare_CANFilter	40	static
 fdcan.c:168:6:CAN_Start	8	static
 fdcan.c:182:19:GetCANMessage	24	static
 fdcan.c:213:6:HAL_FDCAN_RxFifo0Callback	24	static
+fdcan.c:232:6:send_negative_CAN_Rx	16	static

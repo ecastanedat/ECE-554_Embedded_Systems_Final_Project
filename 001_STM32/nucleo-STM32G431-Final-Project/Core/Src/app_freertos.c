@@ -51,6 +51,7 @@ typedef struct memory_buffer
 /* Private variables ---------------------------------------------------------*/
 /* USER CODE BEGIN Variables */
 CANobject *CAN_Message1;
+uint8_t CAN_MsgContinious = ON;
 
 /* USER CODE END Variables */
 /* Definitions for Controller */
@@ -468,7 +469,6 @@ void CAN_Rx_Ctrlr_handler(void *argument)
 	  status = xTaskNotifyWait(0, 0, NULL, pdMS_TO_TICKS(20));
 	  if(status == pdPASS)
 	  {
-
 		  if(CAN_MSG_Received.Rx_Payload[1] == 0x22 && CAN_MSG_Received.Rx_Payload[2] == 0xFE)
 		  {
 			  switch(CAN_MSG_Received.Rx_Payload[3])
@@ -491,30 +491,27 @@ void CAN_Rx_Ctrlr_handler(void *argument)
 			       case 0x02: /*CONFIGURATION CASE: Distance notification mode */
 			    	          if(CAN_MSG_Received.Rx_Payload[4] == 0x01)                         //Continuous mode
 			    	          {
-
+			    	        	  CAN_MsgContinious = ON;
 			    	          }
+			    	          else if(CAN_MSG_Received.Rx_Payload[4] == 0x02)                    //Event based mode
+			    	          {
+			    	        	  CAN_MsgContinious = OFF;
+			    	        	  HAL_FDCAN_AddMessageToTxFifoQ(&hfdcan1, &CAN_Message1->TxHeader, CAN_Message1->Tx_Payload); //Sends the distance to the CAN network.
+			    	          }
+			    	          else
+								  send_negative_CAN_Rx(CAN_MessageRx);
+
 			    	          break;
 
-			       default:   CAN_MessageRx->Tx_Payload[0] = 0x07;                               //Sets the 0x762 header for response part 1.
-					          CAN_MessageRx->Tx_Payload[1] = 0x62;								 //Sets the 0x762 header for response part 2.
-					          CAN_MessageRx->Tx_Payload[2] = 0x7F;								 //Negative Response.
-
-					          HAL_FDCAN_AddMessageToTxFifoQ(&hfdcan1, &CAN_MessageRx->TxHeader, CAN_MessageRx->Tx_Payload); //Sends negative response.
-
+			       default:   /*Unknown configuration case*/
+					          send_negative_CAN_Rx(CAN_MessageRx);
 					          break;
 			  }
 		  }
 		  else
-		  {
-			  CAN_MessageRx->Tx_Payload[0] = 0x07;                               //Sets the 0x762 header for response part 1.
-			  CAN_MessageRx->Tx_Payload[1] = 0x62;								 //Sets the 0x762 header for response part 2.
-			  CAN_MessageRx->Tx_Payload[2] = 0x7F;								 //Negative Response.
-
-			  HAL_FDCAN_AddMessageToTxFifoQ(&hfdcan1, &CAN_MessageRx->TxHeader, CAN_MessageRx->Tx_Payload); //Sends negative response.
-		  }
+			  send_negative_CAN_Rx(CAN_MessageRx);
 
 	  }
-
   }
   /* USER CODE END CAN_Rx_Ctrlr_handler */
 }
@@ -535,7 +532,7 @@ void CAN_Tx_Ctrlr_handler(void *argument)
   for(;;)
   {
 	  status = xTaskNotifyWait(0, 0, NULL, pdMS_TO_TICKS(20));
-	  if(status == pdPASS)
+	  if(status == pdPASS && CAN_MsgContinious == ON)
 	  {
 		  //HAL_GPIO_TogglePin(LD2_GPIO_Port, LD2_Pin);
 		  HAL_FDCAN_AddMessageToTxFifoQ(&hfdcan1, &CAN_Message1->TxHeader, CAN_Message1->Tx_Payload); //Sends the distance to the CAN network.

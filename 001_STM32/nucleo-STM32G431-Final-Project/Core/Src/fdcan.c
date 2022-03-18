@@ -222,4 +222,19 @@ void HAL_FDCAN_RxFifo0Callback(FDCAN_HandleTypeDef *hfdcan, uint32_t RxFifo0ITs)
 	}
 
 }
+
+/**
+  * @brief  Sends a negative response to the CAN network.
+  * @param  CANobject pointer to a CANobject structure that contains
+  *         the configuration information for the specified CAN msg.
+  * @retval None
+  */
+void send_negative_CAN_Rx(CANobject *CAN_Message)
+{
+	CAN_Message->Tx_Payload[0] = 0x07;                             //Sets the 0x762 header for response part 1.
+	CAN_Message->Tx_Payload[1] = 0x62;
+	CAN_Message->Tx_Payload[2] = 0x7F;							   //Negative Response.
+
+	HAL_FDCAN_AddMessageToTxFifoQ(&hfdcan1, &CAN_Message->TxHeader, CAN_Message->Tx_Payload); //Sends negative response.
+}
 /* USER CODE END 1 */

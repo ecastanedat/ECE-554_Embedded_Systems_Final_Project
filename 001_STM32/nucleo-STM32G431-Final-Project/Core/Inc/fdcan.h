@@ -57,6 +57,7 @@ void MX_FDCAN1_Init(void);
 struct CANobject *GetCANMessage(uint32_t can_id);
 void Prepare_CANFilter(void);
 void CAN_Start(void);
+void send_negative_CAN_Rx(CANobject *CAN_Message);
 
 /* USER CODE END Prototypes */
 

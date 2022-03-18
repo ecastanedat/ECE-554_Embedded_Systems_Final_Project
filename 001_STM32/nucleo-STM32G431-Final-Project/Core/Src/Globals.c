@@ -19,6 +19,7 @@ void print_to_console(char *myString)
 	strcat((char*)buffer, "\n");
 	strcat((char*)buffer, "\r");
 	HAL_UART_Transmit(&huart2, buffer, strlen((char*)buffer), HAL_MAX_DELAY);
-
 }
+
+
 

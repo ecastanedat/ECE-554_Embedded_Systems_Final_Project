@@ -6,4 +6,4 @@ app_freertos.c:423:6:led_yellow_handler	24	static
 app_freertos.c:468:6:led_red_handler	24	static
 app_freertos.c:515:6:CAN_Rx_Ctrlr_handler	24	static
 app_freertos.c:620:6:CAN_Tx_Ctrlr_handler	32	static
-app_freertos.c:651:9:number_to_byte_arr	24	static
+app_freertos.c:650:9:number_to_byte_arr	24	static

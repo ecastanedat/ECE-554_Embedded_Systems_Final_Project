@@ -405,10 +405,10 @@ void Start_ultra_sensor_tr(void *argument)
   for(;;)
   {
 	  HAL_GPIO_WritePin(ULTR_TRG_GPIO_Port, ULTR_TRG_Pin, GPIO_PIN_SET);
-	  delay_us(100);  //The HC-SR10 needs a delay of 10 us as a minimum for the TRIG to happen.
+	  delay_us(10);  //The HC-SR10 needs a delay of 10 us as a minimum for the TRIG to happen.
 	  HAL_GPIO_WritePin(ULTR_TRG_GPIO_Port, ULTR_TRG_Pin, GPIO_PIN_RESET);
 
-      vTaskDelayUntil(&xLastWakeTime, pdMS_TO_TICKS(10));
+      vTaskDelayUntil(&xLastWakeTime, pdMS_TO_TICKS(3));
   }
   /* USER CODE END Start_ultra_sensor_tr */
 }
@@ -632,7 +632,6 @@ void CAN_Tx_Ctrlr_handler(void *argument)
 		  HAL_FDCAN_AddMessageToTxFifoQ(&hfdcan1, &CAN_Message1->TxHeader, CAN_Message1->Tx_Payload); //Sends the distance to the CAN network.
 
 	  else if(status == pdPASS && CAN_MsgContinious == OFF && c_distance_zone != p_distance_zone){
-
 		  HAL_FDCAN_AddMessageToTxFifoQ(&hfdcan1, &CAN_Message1->TxHeader, CAN_Message1->Tx_Payload); //Sends the distance to the CAN network.
 		  p_distance_zone = c_distance_zone;
 	  }

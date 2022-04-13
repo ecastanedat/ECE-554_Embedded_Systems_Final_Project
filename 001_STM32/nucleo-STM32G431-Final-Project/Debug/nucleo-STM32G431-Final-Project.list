@@ -1933,8 +1933,8 @@ void Start_ultra_sensor_tr(void *argument)
  8001478:	2110      	movs	r1, #16
  800147a:	f04f 4090 	mov.w	r0, #1207959552	; 0x48000000
  800147e:	f002 f981 	bl	8003784 <HAL_GPIO_WritePin>
-	  delay_us(100);  //The HC-SR10 needs a delay of 10 us as a minimum for the TRIG to happen.
- 8001482:	2064      	movs	r0, #100	; 0x64
+	  delay_us(10);  //The HC-SR10 needs a delay of 10 us as a minimum for the TRIG to happen.
+ 8001482:	200a      	movs	r0, #10
  8001484:	f000 ff60 	bl	8002348 <delay_us>
 	  HAL_GPIO_WritePin(ULTR_TRG_GPIO_Port, ULTR_TRG_Pin, GPIO_PIN_RESET);
  8001488:	2200      	movs	r2, #0
@@ -1942,9 +1942,9 @@ void Start_ultra_sensor_tr(void *argument)
  800148c:	f04f 4090 	mov.w	r0, #1207959552	; 0x48000000
  8001490:	f002 f978 	bl	8003784 <HAL_GPIO_WritePin>
 
-      vTaskDelayUntil(&xLastWakeTime, pdMS_TO_TICKS(10));
+      vTaskDelayUntil(&xLastWakeTime, pdMS_TO_TICKS(3));
  8001494:	f107 030c 	add.w	r3, r7, #12
- 8001498:	210a      	movs	r1, #10
+ 8001498:	2103      	movs	r1, #3
  800149a:	4618      	mov	r0, r3
  800149c:	f005 ff72 	bl	8007384 <vTaskDelayUntil>
 	  HAL_GPIO_WritePin(ULTR_TRG_GPIO_Port, ULTR_TRG_Pin, GPIO_PIN_SET);
@@ -2408,7 +2408,6 @@ void CAN_Tx_Ctrlr_handler(void *argument)
  800175c:	697a      	ldr	r2, [r7, #20]
  800175e:	429a      	cmp	r2, r3
  8001760:	d0da      	beq.n	8001718 <CAN_Tx_Ctrlr_handler+0xc>
-
 		  HAL_FDCAN_AddMessageToTxFifoQ(&hfdcan1, &CAN_Message1->TxHeader, CAN_Message1->Tx_Payload); //Sends the distance to the CAN network.
  8001762:	4b07      	ldr	r3, [pc, #28]	; (8001780 <CAN_Tx_Ctrlr_handler+0x74>)
  8001764:	681b      	ldr	r3, [r3, #0]

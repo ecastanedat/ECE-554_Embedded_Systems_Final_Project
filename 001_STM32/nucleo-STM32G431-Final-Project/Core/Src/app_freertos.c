@@ -38,8 +38,13 @@ typedef struct memory_buffer
 #define OFF               0
 #define ON                1
 #define TOGGLE            2
-#define ADJUSTMENT_FACTOR 5
 #define RESTART           100
+#define DANGER            1
+#define WARNING           2
+#define SAFE              3
+#define CURRENT           0
+#define PAST              1
+//#define DEBUG_MODE
 
 /* USER CODE END PD */
 
@@ -55,53 +60,51 @@ uint8_t CAN_MsgContinious = ON;
 
 /* USER CODE END Variables */
 /* Definitions for Controller */
-//osThreadId_t ControllerHandle;
 const osThreadAttr_t Controller_attributes = {
   .name = "Controller",
   .priority = (osPriority_t) osPriorityNormal,
   .stack_size = 300 * 4
 };
 /* Definitions for led_green */
-//osThreadId_t led_greenHandle;
 const osThreadAttr_t led_green_attributes = {
   .name = "led_green",
   .priority = (osPriority_t) osPriorityNormal,
   .stack_size = 128 * 4
 };
 /* Definitions for ultra_sensor_tr */
-//osThreadId_t ultra_sensor_trHandle;
 const osThreadAttr_t ultra_sensor_tr_attributes = {
   .name = "ultra_sensor_tr",
   .priority = (osPriority_t) osPriorityNormal,
   .stack_size = 128 * 4
 };
 /* Definitions for led_yellow */
-//osThreadId_t led_yellowHandle;
 const osThreadAttr_t led_yellow_attributes = {
   .name = "led_yellow",
   .priority = (osPriority_t) osPriorityNormal,
   .stack_size = 128 * 4
 };
 /* Definitions for led_red */
-//osThreadId_t led_redHandle;
 const osThreadAttr_t led_red_attributes = {
   .name = "led_red",
   .priority = (osPriority_t) osPriorityNormal,
   .stack_size = 128 * 4
 };
 /* Definitions for CAN_Rx_Ctrlr */
-//osThreadId_t CAN_Rx_CtrlrHandle;
 const osThreadAttr_t CAN_Rx_Ctrlr_attributes = {
   .name = "CAN_Rx_Ctrlr",
   .priority = (osPriority_t) osPriorityNormal,
-  .stack_size = 300 * 4
+  .stack_size = 128 * 4
 };
 /* Definitions for CAN_Tx_Ctrlr */
-//osThreadId_t CAN_Tx_CtrlrHandle;
 const osThreadAttr_t CAN_Tx_Ctrlr_attributes = {
   .name = "CAN_Tx_Ctrlr",
   .priority = (osPriority_t) osPriorityNormal,
   .stack_size = 128 * 4
+};
+/* Definitions for Mutex01 */
+osMutexId_t Mutex01Handle;
+const osMutexAttr_t Mutex01_attributes = {
+  .name = "Mutex01"
 };
 
 /* Private function prototypes -----------------------------------------------*/
@@ -129,6 +132,9 @@ void MX_FREERTOS_Init(void) {
   /* USER CODE BEGIN Init */
 
   /* USER CODE END Init */
+  /* Create the mutex(es) */
+  /* creation of Mutex01 */
+  Mutex01Handle = osMutexNew(&Mutex01_attributes);
 
   /* USER CODE BEGIN RTOS_MUTEX */
   /* add mutexes, ... */
@@ -190,8 +196,8 @@ void Controller_handler(void *argument)
   /* USER CODE BEGIN Controller_handler */
   uint32_t timer_ticks = 0;
   uint8_t reversed_array[8], reversed_array_size = 0, reversed_array_elem = 0;
+  uint32_t distance_zone;
   float distance;
-  char string_number[20];
   SM_STATES state = INIT;
   BaseType_t status;
   mBuff debounce;
@@ -230,15 +236,24 @@ void Controller_handler(void *argument)
 							   debounce.downcounter--;
 						   }
 
-						  distance = (SPEED_OF_SOUND * TIMER_PERIOD * timer_ticks)/2;            //Divided by 2 because sound goes from the sensor to object
-						  	  	  	  	  	  	  	  	  	  	  	  	  	  	  	  	  	  	 //and back to the sensor.
+						   distance = SPEED_OF_SOUND * TIMER_PERIOD * timer_ticks * 0.5;           //Divided by 2 because sound goes from the sensor to object
+						                                                                         //and back to the sensor.
+#ifdef DEBUG_MODE
+						   char string_number[20];
+						   osStatus_t  m_status;
 
-						  sprintf(string_number, "%0.3f", distance);
-						  print_to_console(string_number);
+						   sprintf(string_number, "%0.3f", distance);
+						   m_status = osMutexAcquire(Mutex01Handle, osWaitForever);              //Gets the Mutex for UART printing
+						   if(m_status == osOK) print_to_console(string_number);
+						   osMutexRelease(Mutex01Handle);
+#endif
 
-						  /*This case will trigger the DANGER ZONE indicator (RED LED)*/
-						  if(distance >= 0 && distance <= distance_thresholds.danger)
-						  {
+
+						   /*This case will trigger the DANGER ZONE indicator (RED LED)*/
+						   if(distance >= 0 && distance <= distance_thresholds.danger)
+						   {
+							   distance_zone = DANGER;
+
 							   xTaskNotify((TaskHandle_t)led_redHandle, TOGGLE, eSetValueWithOverwrite);
 							   xTaskNotify((TaskHandle_t)led_greenHandle, OFF, eSetValueWithOverwrite);
 							   xTaskNotify((TaskHandle_t)led_yellowHandle, OFF, eSetValueWithOverwrite);
@@ -255,10 +270,12 @@ void Controller_handler(void *argument)
 							   }
 
 							   CAN_Message1->Tx_Payload[7] = 0x02;     //Danger signal is BIT #2.
-						  }
-						  /*This case will trigger the WARNING ZONE indicator (YELLOW LED)*/
-						  else if(distance > distance_thresholds.danger && distance <= distance_thresholds.warning)
-						  {
+						   }
+						   /*This case will trigger the WARNING ZONE indicator (YELLOW LED)*/
+						   else if(distance > distance_thresholds.danger && distance <= distance_thresholds.warning)
+						   {
+							    distance_zone = WARNING;
+
 								xTaskNotify((TaskHandle_t)led_yellowHandle, ON, eSetValueWithOverwrite);
 								xTaskNotify((TaskHandle_t)led_greenHandle, OFF, eSetValueWithOverwrite);
 							    xTaskNotify((TaskHandle_t)led_redHandle, OFF, eSetValueWithOverwrite);
@@ -275,31 +292,32 @@ void Controller_handler(void *argument)
 								}
 
 								CAN_Message1->Tx_Payload[7] = 0x01;    //Warning signal is BIT #1.
-						  }
-						  /*This case will trigger the OK ZONE indicator (GREEN LED)*/
-						  else
-						  {
-							  xTaskNotify((TaskHandle_t)led_yellowHandle, OFF, eSetValueWithOverwrite);
-							  xTaskNotify((TaskHandle_t)led_redHandle, OFF, eSetValueWithOverwrite);
-							  xTaskNotify((TaskHandle_t)led_greenHandle, ON, eSetValueWithOverwrite);
+						   }
+						   /*This case will trigger the OK ZONE indicator (GREEN LED)*/
+						   else
+						   {
+							   distance_zone = SAFE;
 
-							  CAN_Message1->Tx_Payload[7] = 0x00;       //No Warning or Danger signals.
-						  }
+							   xTaskNotify((TaskHandle_t)led_yellowHandle, OFF, eSetValueWithOverwrite);
+							   xTaskNotify((TaskHandle_t)led_redHandle, OFF, eSetValueWithOverwrite);
+							   xTaskNotify((TaskHandle_t)led_greenHandle, ON, eSetValueWithOverwrite);
 
-						  reversed_array_size = number_to_byte_arr(reversed_array, (uint8_t)distance);
-						  reversed_array_elem = reversed_array_size;
+							   CAN_Message1->Tx_Payload[7] = 0x00;       //No Warning or Danger signals.
+						   }
 
-						  /*Takes the values from the reversed array and populates the array that will be sent via CAN*/
-						  for(uint8_t counter = 0; counter <= reversed_array_size; counter++)
-						  {
+						   reversed_array_size = number_to_byte_arr(reversed_array, (uint8_t)distance);
+						   reversed_array_elem = reversed_array_size;
+
+						   /*Takes the values from the reversed array and populates the array that will be sent via CAN*/
+						   for(uint8_t counter = 0; counter <= reversed_array_size; counter++)
+						   {
 							  CAN_Message1->Tx_Payload[counter] = reversed_array[reversed_array_elem];
 							  reversed_array_elem--;
-						  }
+						   }
 
-						  reversed_array_size = 0;
+						   reversed_array_size = 0;
 
-						  xTaskNotify((TaskHandle_t)CAN_Tx_CtrlrHandle, 0, eNoAction);
-						  //HAL_FDCAN_AddMessageToTxFifoQ(&hfdcan1, &CAN_Message1->TxHeader, CAN_Message1->Tx_Payload); //Sends the distance to the CAN network.
+						   xTaskNotify((TaskHandle_t)CAN_Tx_CtrlrHandle, distance_zone, eSetValueWithOverwrite);
 					   }
 					   else
 						   print_to_console("Waiting for sensor data...");
@@ -340,6 +358,19 @@ void led_green_handler(void *argument)
   {
 	  //HAL_GPIO_TogglePin(GREEN_LED_GPIO_Port, GREEN_LED_Pin);
 	  status = xTaskNotifyWait(0, 0, &flag, pdMS_TO_TICKS(10));
+
+#ifdef DEBUG_MODE
+	  char string_number[20];
+	  osStatus_t  m_status;
+
+	  sprintf(string_number, "%u", flag);
+	  m_status = osMutexAcquire(Mutex01Handle, osWaitForever);           //Gets the Mutex for UART printing
+	  if(m_status == osOK){
+		  print_to_console("led_handler value received...");
+		  print_to_console(string_number);
+	  }
+	  osMutexRelease(Mutex01Handle);                                     //Releases the Mutex
+#endif
 
 	  if(status == pdPASS)
 	  {
@@ -400,6 +431,19 @@ void led_yellow_handler(void *argument)
   {
 	  status = xTaskNotifyWait(0, 0, &flag, pdMS_TO_TICKS(10));
 
+#ifdef DEBUG_MODE
+	  char string_number[20];
+	  osStatus_t  m_status;
+
+	  sprintf(string_number, "%u", flag);
+	  m_status = osMutexAcquire(Mutex01Handle, osWaitForever);           //Gets the Mutex for UART printing
+	  if(m_status == osOK){
+		  print_to_console("led_handler value received...");
+		  print_to_console(string_number);
+	  }
+	  osMutexRelease(Mutex01Handle);                                     //Releases the Mutex
+#endif
+
 	  if(status == pdPASS)
 	  {
 		  switch(flag)
@@ -431,6 +475,19 @@ void led_red_handler(void *argument)
   for(;;)
   {
 	  status = xTaskNotifyWait(0, 0, &flag, pdMS_TO_TICKS(10));
+
+#ifdef DEBUG_MODE
+	  char string_number[20];
+	  osStatus_t  m_status;
+
+	  sprintf(string_number, "%u", flag);
+	  m_status = osMutexAcquire(Mutex01Handle, osWaitForever);           //Gets the Mutex for UART printing
+	  if(m_status == osOK){
+		  print_to_console("led_handler value received...");
+		  print_to_console(string_number);
+	  }
+	  osMutexRelease(Mutex01Handle);                                     //Releases the Mutex
+#endif
 
 	  if(status == pdTRUE)
 	  {
@@ -474,11 +531,18 @@ void CAN_Rx_Ctrlr_handler(void *argument)
 			  switch(CAN_MSG_Received.Rx_Payload[3])
 			  {
 			       case 0x01: /*CONFIGURATION CASE: Update Thresholds*/
-			    	          distance_thresholds.danger  = CAN_MSG_Received.Rx_Payload[4];      //Sets the new danger threshold value.
+#ifdef DEBUG_MODE
+			    	          osStatus_t  m_status;
+			    	          m_status = osMutexAcquire(Mutex01Handle, osWaitForever);           //Gets the Mutex for UART printing
+							  if(m_status == osOK) print_to_console("Updating distance thresholds...");
+							  osMutexRelease(Mutex01Handle);                                     //Releases the Mutex
+#endif
+
+							  distance_thresholds.danger  = CAN_MSG_Received.Rx_Payload[4];      //Sets the new danger threshold value.
 			       	   	   	  distance_thresholds.warning = CAN_MSG_Received.Rx_Payload[5];      //Sets the new warning threshold value.
 
-			       	   	      CAN_MessageRx->Tx_Payload[0] = 0x07;                               //Sets the 0x762 header for response part 1.
-			       	   	      CAN_MessageRx->Tx_Payload[1] = 0x62;								 //Sets the 0x762 header for response part 2.
+			       	   	      CAN_MessageRx->Tx_Payload[0] = 0x05;                               //Sets the 0x562 header for response part 1.
+			       	   	      CAN_MessageRx->Tx_Payload[1] = 0x62;								 //Sets the 0x562 header for response part 2.
 			       	   	      CAN_MessageRx->Tx_Payload[2] = 0xFE;                               //Sets the DID number.
 			       	   	      CAN_MessageRx->Tx_Payload[3] = 0x01;                               //Sets the DID configuration case.
 			       	   	      CAN_MessageRx->Tx_Payload[4] = CAN_MSG_Received.Rx_Payload[4];     //Sets the acknowledge danger threshold.
@@ -486,16 +550,41 @@ void CAN_Rx_Ctrlr_handler(void *argument)
 
 			       	   	   	  HAL_FDCAN_AddMessageToTxFifoQ(&hfdcan1, &CAN_MessageRx->TxHeader, CAN_MessageRx->Tx_Payload); //Sends positive acknowledgment.
 
+#ifdef DEBUG_MODE
+			       	   	      m_status = osMutexAcquire(Mutex01Handle, osWaitForever);           //Gets the Mutex for UART printing
+			       	   		  if(m_status == osOK) print_to_console("Distance thresholds updated");
+			       	   		  osMutexRelease(Mutex01Handle);                                     //Releases the Mutex
+#endif
+
 			    	          break;
 
 			       case 0x02: /*CONFIGURATION CASE: Distance notification mode */
 			    	          if(CAN_MSG_Received.Rx_Payload[4] == 0x01)                         //Continuous mode
 			    	          {
 			    	        	  CAN_MsgContinious = ON;
+
+			    	        	  CAN_MessageRx->Tx_Payload[0] = 0x05;                               //Sets the 0x562 header for response part 1.
+								  CAN_MessageRx->Tx_Payload[1] = 0x62;								 //Sets the 0x562 header for response part 2.
+								  CAN_MessageRx->Tx_Payload[2] = 0xFE;                               //Sets the DID number.
+								  CAN_MessageRx->Tx_Payload[3] = 0x02;                               //Sets the DID configuration case.
+								  CAN_MessageRx->Tx_Payload[4] = CAN_MSG_Received.Rx_Payload[4];     //Sets the acknowledge danger threshold.
+								  CAN_MessageRx->Tx_Payload[5] = CAN_MSG_Received.Rx_Payload[5];     //Sets the acknowledge warning threshold.
+
+								  HAL_FDCAN_AddMessageToTxFifoQ(&hfdcan1, &CAN_MessageRx->TxHeader, CAN_MessageRx->Tx_Payload); //Sends positive acknowledgment.
+
 			    	          }
 			    	          else if(CAN_MSG_Received.Rx_Payload[4] == 0x02)                    //Event based mode
 			    	          {
 			    	        	  CAN_MsgContinious = OFF;
+
+			    	        	  CAN_MessageRx->Tx_Payload[0] = 0x05;                               //Sets the 0x562 header for response part 1.
+								  CAN_MessageRx->Tx_Payload[1] = 0x62;								 //Sets the 0x562 header for response part 2.
+								  CAN_MessageRx->Tx_Payload[2] = 0xFE;                               //Sets the DID number.
+								  CAN_MessageRx->Tx_Payload[3] = 0x02;                               //Sets the DID configuration case.
+								  CAN_MessageRx->Tx_Payload[4] = CAN_MSG_Received.Rx_Payload[4];     //Sets the acknowledge danger threshold.
+								  CAN_MessageRx->Tx_Payload[5] = CAN_MSG_Received.Rx_Payload[5];     //Sets the acknowledge warning threshold.
+
+								  HAL_FDCAN_AddMessageToTxFifoQ(&hfdcan1, &CAN_MessageRx->TxHeader, CAN_MessageRx->Tx_Payload); //Sends positive acknowledgment.
 			    	        	  HAL_FDCAN_AddMessageToTxFifoQ(&hfdcan1, &CAN_Message1->TxHeader, CAN_Message1->Tx_Payload); //Sends the distance to the CAN network.
 			    	          }
 			    	          else
@@ -504,7 +593,12 @@ void CAN_Rx_Ctrlr_handler(void *argument)
 			    	          break;
 
 			       default:   /*Unknown configuration case*/
-					          send_negative_CAN_Rx(CAN_MessageRx);
+#ifdef DEBUG_MODE
+			    	          m_status = osMutexAcquire(Mutex01Handle, osWaitForever);           //Gets the Mutex for UART printing
+			    	   		  if(m_status == osOK) print_to_console("Unknown configuration mode!");
+			    	   		  osMutexRelease(Mutex01Handle);                                     //Releases the Mutex
+#endif
+			    	   		  send_negative_CAN_Rx(CAN_MessageRx);
 					          break;
 			  }
 		  }
@@ -527,15 +621,20 @@ void CAN_Tx_Ctrlr_handler(void *argument)
 {
   /* USER CODE BEGIN CAN_Tx_Ctrlr_handler */
   BaseType_t status;
+  uint32_t c_distance_zone, p_distance_zone = SAFE;
 
   /* Infinite loop */
   for(;;)
   {
-	  status = xTaskNotifyWait(0, 0, NULL, pdMS_TO_TICKS(20));
+	  status = xTaskNotifyWait(0, 0, &c_distance_zone, pdMS_TO_TICKS(20));
+
 	  if(status == pdPASS && CAN_MsgContinious == ON)
-	  {
-		  //HAL_GPIO_TogglePin(LD2_GPIO_Port, LD2_Pin);
 		  HAL_FDCAN_AddMessageToTxFifoQ(&hfdcan1, &CAN_Message1->TxHeader, CAN_Message1->Tx_Payload); //Sends the distance to the CAN network.
+
+	  else if(status == pdPASS && CAN_MsgContinious == OFF && c_distance_zone != p_distance_zone){
+
+		  HAL_FDCAN_AddMessageToTxFifoQ(&hfdcan1, &CAN_Message1->TxHeader, CAN_Message1->Tx_Payload); //Sends the distance to the CAN network.
+		  p_distance_zone = c_distance_zone;
 	  }
 
   }

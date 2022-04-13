@@ -233,7 +233,7 @@ void send_negative_CAN_Rx(CANobject *CAN_Message)
 {
 	CAN_Message->Tx_Payload[0] = 0x07;                             //Sets the 0x762 header for response part 1.
 	CAN_Message->Tx_Payload[1] = 0x62;
-	CAN_Message->Tx_Payload[2] = 0x7F;							   //Negative Response.
+	CAN_Message->Tx_Payload[2] = 0x7F;							   //7F is negative Response.
 
 	HAL_FDCAN_AddMessageToTxFifoQ(&hfdcan1, &CAN_Message->TxHeader, CAN_Message->Tx_Payload); //Sends negative response.
 }

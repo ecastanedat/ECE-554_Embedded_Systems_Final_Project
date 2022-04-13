@@ -104,7 +104,7 @@ int main(void)
   MX_TIM8_Init();
   MX_TIM2_Init();
   /* USER CODE BEGIN 2 */
-  //CAN1_MSG_config();
+
   HAL_TIM_Base_Start(&htim2);
 
   /* USER CODE END 2 */

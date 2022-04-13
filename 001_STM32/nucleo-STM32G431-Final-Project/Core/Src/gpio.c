@@ -93,7 +93,8 @@ void HAL_GPIO_EXTI_Callback(uint16_t GPIO_Pin)
 		switch(state)
 		{
 			case GPIO_PIN_SET:   __HAL_TIM_SET_COUNTER(&htim2, 0); break; /*Rising Edge*/
-			case GPIO_PIN_RESET: xTaskNotifyFromISR((TaskHandle_t)ControllerHandle, __HAL_TIM_GET_COUNTER(&htim2), eSetValueWithOverwrite, NULL); /*Falling Edge*/
+			case GPIO_PIN_RESET: xTaskNotifyFromISR((TaskHandle_t)ControllerHandle,
+					                                 __HAL_TIM_GET_COUNTER(&htim2), eSetValueWithOverwrite, NULL); /*Falling Edge*/
 			                     break;
 			default:             break;
 		}
